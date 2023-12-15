@@ -23,6 +23,12 @@ config = Config("config.toml")
 
 
 def fetch_all_manifests():
+    """
+    Fetches all manifests based in the configured report directories and returns them in sorted order.
+
+    Returns:
+        list: A list of file paths representing the manifests.
+    """
     manifests = []
     for path in config.get("settings.report_dirs"):
         pattern = f"**/{path}-Manifest.json"
@@ -36,12 +42,36 @@ def fetch_all_manifests():
 
 
 def load_manifest(file):
+    """
+    Load a JSON manifest file.
+
+    Args:
+        file (str): The path to the manifest file.
+
+    Returns:
+        dict: The loaded manifest as a dictionary.
+    """
     with open(file, "r") as f:
         manifest = json.load(f)
     return manifest
 
 
 def parse_columns(manifest):
+    """
+    Parses the columns from the given manifest and returns a list of dictionaries
+    containing the column name and its corresponding type.  This maps AWS CUR types to
+    Clickhouse equivalents.
+
+    Note: Early versions of the manifest did not include the type of the column, so we
+    provide a default of "String" if the type is not found.
+
+    Args:
+        manifest (dict): The manifest containing the columns.
+
+    Returns:
+        list: A list of dictionaries, where each dictionary contains the name and type
+        of a column.
+    """
     type_mapping = {
         "String": "String",
         "Interval": "String",
@@ -65,6 +95,15 @@ def parse_columns(manifest):
 
 
 def download_files(manifest):
+    """
+    Download files from an S3 bucket based on the given manifest.
+
+    Args:
+        manifest (dict): The manifest containing the report keys.
+
+    Returns:
+        None
+    """
     tmp_dir = (
         f"{config.get('settings.project_dir')}/{config.get('settings.storage_dir')}/tmp"
     )
@@ -93,6 +132,16 @@ def download_files(manifest):
 
 
 def load_month(manifest, columns):
+    """
+    Loads data for a specific month into ClickHouse.
+
+    Args:
+        manifest (dict): The manifest containing information about the data to be loaded.
+        columns (list): The list of columns for the ClickHouse table.
+
+    Returns:
+        None
+    """
     client = clickhouse_connect.get_client(host="localhost", username="default")
     schema_string = ", ".join([f"{item['name']} {item['type']}" for item in columns])
     partition = int(parser.parse(manifest["billingPeriod"]["start"]).strftime("%Y%m"))
@@ -108,24 +157,6 @@ def load_month(manifest, columns):
             "date_time_input_format": "best_effort",
             "session_timezone": "UTC",
         }
-        # parameters = {
-        #     "access_key_id": config["settings"]["aws_access_key_id"],
-        #     "secret_access_key": config["settings"]["aws_secret_access_key"],
-        #     "s3_file_path": f"s3://{config['settings']['cur_bucket']}/{f}",
-        # }
-        # client.command(
-        #     """
-        # INSERT INTO aws
-        # SELECT * FROM s3(
-        #                 %(s3_file_path)s,
-        #                 %(access_key_id)s,
-        #                 %(secret_access_key)s,
-        #                 'CSVWithNames'
-        # )
-        # """,
-        #     parameters=parameters,
-        #     settings=settings,
-        # )
 
         insert_file(
             client=client,
@@ -138,6 +169,19 @@ def load_month(manifest, columns):
 
 
 def do_we_load_it(manifest):
+    """
+    Checks if the given manifest should be loaded into ClickHouse.  This is determined
+    by checking the start date of the billing period against the configured ingest_start_date.
+
+    Next we check to see if the assembly_id represented by the manifest has already been loaded
+    for the given billing period.  If it has, we don't need to load it again.
+
+    Args:
+        manifest (dict): The manifest data.
+
+    Returns:
+        bool: True if the manifest should be loaded, False otherwise.
+    """
     start_date = parser.parse(manifest["billingPeriod"]["start"])
     if start_date < config.get("settings.ingest_start_date"):
         print(f"Skipping {start_date}")
@@ -160,6 +204,15 @@ def do_we_load_it(manifest):
 
 
 def update_state(manifest):
+    """
+    Update the state in the AWS table to reflect that a given manifest's assembly_id has been loaded.
+
+    Args:
+        manifest (dict): The manifest containing the billing period start, assembly ID, and current timestamp.
+
+    Returns:
+        None
+    """
     client = clickhouse_connect.get_client(host="localhost", username="default")
     client.query(
         f"""
