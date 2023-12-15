@@ -3,3 +3,4 @@ storage
 config.toml
 *__pycache__
 config*
+.vscode

@@ -19,15 +19,16 @@ from dataeng.clickhouse.schema_handling import (
     create_aws_state_table,
 )
 
-config = Config("config.toml").config
+config = Config("config.toml")
 
 
 def fetch_all_manifests():
     manifests = []
-    for path in config["settings"]["report_dirs"]:
+    for path in config.get("settings.report_dirs"):
         pattern = f"**/{path}-Manifest.json"
+        glob_path = f"{config.get('settings.project_dir')}/{config.get('settings.storage_dir')}/{config.get('settings.cur_prefix')}/{pattern}"
         for manifest in glob.glob(
-            f"{config['settings']['project_dir']}/{config['settings']['storage_dir']}/{config['settings']['cur_prefix']}/{pattern}",
+            glob_path,
             recursive=True,
         ):
             manifests.append(manifest)
@@ -65,11 +66,11 @@ def parse_columns(manifest):
 
 def download_files(manifest):
     tmp_dir = (
-        f"{config['settings']['project_dir']}/{config['settings']['storage_dir']}/tmp"
+        f"{config.get('settings.project_dir')}/{config.get('settings.storage_dir')}/tmp"
     )
     shutil.rmtree(tmp_dir)
     resource = boto3.resource("s3")
-    bucket = resource.Bucket(config["settings"]["cur_bucket"])
+    bucket = resource.Bucket(config.get("settings.cur_bucket"))
     for f in manifest["reportKeys"]:
         os.makedirs(
             os.path.dirname(f"{tmp_dir}/{f}"),
@@ -86,7 +87,7 @@ def download_files(manifest):
             # to the file is not in the manifest prior to June 2019
             print(f"Error downloading {f} - trying again with prefix")
             bucket.download_file(
-                f"{config['settings']['cur_prefix'] + f}",
+                f"{config.get('settings.cur_prefix') + f}",
                 f"{tmp_dir}/{f}",
             )
 
@@ -138,7 +139,7 @@ def load_month(manifest, columns):
 
 def do_we_load_it(manifest):
     start_date = parser.parse(manifest["billingPeriod"]["start"])
-    if start_date < config["settings"]["ingest_start_date"]:
+    if start_date < config.get("settings.ingest_start_date"):
         print(f"Skipping {start_date}")
         return False
     client = clickhouse_connect.get_client(host="localhost", username="default")
