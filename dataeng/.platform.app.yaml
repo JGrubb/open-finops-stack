@@ -1,0 +1,6 @@
+name: dataeng
+
+type: python:3.11
+
+relationships:
+  database: "clickhouse:clickhouse"
