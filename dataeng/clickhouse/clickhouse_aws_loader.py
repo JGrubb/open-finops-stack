@@ -1,7 +1,7 @@
 import json
 import os
 import re
-import glob
+import time
 from dateutil import parser
 import shutil
 
@@ -150,20 +150,41 @@ def load_month(manifest, columns):
     drop_partition(client, partition)
 
     for f in manifest["reportKeys"]:
-        print(f"Loading {f}")
-        settings = {
-            "input_format_csv_skip_first_lines": 1,
-            "date_time_input_format": "best_effort",
-            "session_timezone": "UTC",
-        }
+        file_path = f"{os.getenv('OFS_STORAGE_DIR')}/tmp/{f}"
+        load_file(file_path, columns)
 
+
+def load_file(file_path, columns):
+    """
+    Loads a single file into ClickHouse.
+
+    Args:
+        file (str): The path to the file to be loaded.
+        columns (list): The list of columns for the ClickHouse table.
+
+    Returns:
+        None
+    """
+    client = create_client()
+
+    print(f"Loading {file_path}")
+    settings = {
+        "input_format_csv_skip_first_lines": 1,
+        "date_time_input_format": "best_effort",
+        "session_timezone": "UTC",
+    }
+    try:
         insert_file(
             client=client,
             table="aws",
-            file_path=f"{os.getenv('OFS_STORAGE_DIR')}/tmp/{f}",
+            file_path=file_path,
             column_names=[column["name"] for column in columns],
             settings=settings,
         )
+    except Exception as e:
+        print(e)
+        time.sleep(10)
+        load_file(file_path, columns)
 
 
 def do_we_load_it(manifest):
