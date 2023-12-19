@@ -203,7 +203,7 @@ def do_we_load_it(manifest):
     """
     start_date = parser.parse(manifest["billingPeriod"]["start"])
     if start_date < parser.parse(
-        os.getenv("OFS_INGEST_START_DATE", "2018-01-01 00:00:00Z")
+        os.getenv("OFS_INGEST_START_DATE", "2023-01-01 00:00:00Z")
     ):
         print(f"Skipping {start_date}")
         return False

@@ -17,3 +17,8 @@ mounts:
   "/storage":
     source: local
     source_path: "storage"
+
+variables:
+  env:
+    OFS_STORAGE_DIR: "/app/storage"
+    PYTHONPATH: "/app"
