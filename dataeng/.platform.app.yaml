@@ -4,3 +4,7 @@ type: python:3.11
 
 relationships:
   database: "clickhouse:clickhouse"
+
+hooks:
+  build: |
+    pip install -r requirements.txt
