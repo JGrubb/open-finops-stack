@@ -203,12 +203,6 @@ def do_we_load_it(manifest):
     return True
 
 
-def cleanup():
-    tmp_dir = f"{os.getenv('OFS_STORAGE_DIR')}"
-    if os.path.exists(tmp_dir):
-        shutil.rmtree(tmp_dir)
-
-
 def update_state(manifest):
     """
     Update the state in the AWS table to reflect that a given manifest's assembly_id has been loaded.
@@ -230,6 +224,12 @@ def update_state(manifest):
         )
     """
     )
+
+
+def cleanup():
+    tmp_dir = f"{os.getenv('OFS_STORAGE_DIR')}/tmp"
+    if os.path.exists(tmp_dir):
+        shutil.rmtree(tmp_dir)
 
 
 if __name__ == "__main__":
