@@ -9,9 +9,9 @@ clickhouse:
         default_database: default
         port: 8123
         privileges:
-          main: admin
+          default: admin
       ro:
         default_database: default
         port: 8123
         privileges:
-          main: ro
+          default: ro
