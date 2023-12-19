@@ -3,8 +3,15 @@ name: dataeng
 type: python:3.11
 
 relationships:
-  database: "clickhouse:clickhouse"
+  clickhouse_db: "clickhouse:clickhouse"
 
 hooks:
   build: |
     pip install -r requirements.txt
+
+disk: 5120
+
+mounts:
+  "/storage":
+    source: local
+    source_path: "storage"

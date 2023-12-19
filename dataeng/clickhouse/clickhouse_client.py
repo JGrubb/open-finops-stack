@@ -1,8 +1,12 @@
 import os
 import clickhouse_connect
+from platformshconfig import Config as PlatformshConfig
 
 
 def create_client():
+    psh_config = PlatformshConfig()
+    psh_creds = psh_config.credentials("clickhouse_db")
+
     credentials = dict(
         host=os.getenv("CLICKHOUSE_HOST", "localhost"),
         username=os.getenv("CLICKHOUSE_USERNAME", "default"),
