@@ -1,18 +1,11 @@
 import os
 import re
 import boto3
-from utils.configurator import Config
-
-config = Config("config.toml")
-
-
-def get_s3_resource():
-    return boto3.resource("s3")
 
 
 def return_s3_bucket():
     resource = boto3.resource("s3")
-    return resource.Bucket(config.get("settings.cur_bucket"))
+    return resource.Bucket(os.getenv("OFS_CUR_BUCKET"))
 
 
 def return_manifests(my_bucket):
@@ -27,15 +20,14 @@ def return_manifests(my_bucket):
 
     """
     manifests = []
-    for path in config.get("settings.report_dirs"):
-        pattern = rf"\d{{8}}-\d{{8}}/{path}-Manifest.json"
+    pattern = r"\d{8}-\d{8}/[a-z\-\d]+-Manifest\.json"
 
-        for object in my_bucket.objects.filter(
-            Prefix=config.get("settings.cur_prefix") + f"/{path}/"
-        ):  # this needs to be configurable
-            last_two = "/".join(object.key.split("/")[-2:])
-            if re.match(pattern, last_two):
-                manifests.append(object)
+    for item in my_bucket.objects.filter(
+        Prefix=os.getenv("OFS_CUR_PREFIX"),
+    ):  # this needs to be configurable
+        last_two = "/".join(item.key.split("/")[-2:])
+        if re.match(pattern, last_two):
+            manifests.append(item)
     return manifests
 
 
@@ -51,7 +43,7 @@ def download_manifests(bucket, manifests):
       None
     """
     for manifest in manifests:
-        storage_path = f"{config.get('settings.project_dir')}/storage/{manifest.key}"
+        storage_path = f"{os.getenv('OFS_STORAGE_DIR')}/{manifest.key}"
         os.makedirs(
             os.path.dirname(storage_path),
             exist_ok=True,

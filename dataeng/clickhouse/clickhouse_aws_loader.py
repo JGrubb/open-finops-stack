@@ -11,15 +11,14 @@ import botocore.exceptions as botoexceptions
 import clickhouse_connect
 from clickhouse_connect.driver.tools import insert_file
 
-from utils.configurator import Config
+from clickhouse_client import create_client
+
 from dataeng.clickhouse.schema_handling import (
     create_aws_table,
     align_schemas,
     drop_partition,
     create_aws_state_table,
 )
-
-config = Config("config.toml")
 
 
 def fetch_all_manifests():
@@ -30,14 +29,11 @@ def fetch_all_manifests():
         list: A list of file paths representing the manifests.
     """
     manifests = []
-    for path in config.get("settings.report_dirs"):
-        pattern = f"**/{path}-Manifest.json"
-        glob_path = f"{config.get('settings.project_dir')}/{config.get('settings.storage_dir')}/{config.get('settings.cur_prefix')}/{pattern}"
-        for manifest in glob.glob(
-            glob_path,
-            recursive=True,
-        ):
-            manifests.append(manifest)
+    pattern = r"[a-z\-\d]+-Manifest\.json"
+    for root, dirs, files in os.walk(os.getenv("OFS_STORAGE_DIR")):
+        for file in files:
+            if re.match(pattern, file):
+                manifests.append(os.path.join(root, file))
     return sorted(manifests)
 
 
@@ -104,12 +100,11 @@ def download_files(manifest):
     Returns:
         None
     """
-    tmp_dir = (
-        f"{config.get('settings.project_dir')}/{config.get('settings.storage_dir')}/tmp"
-    )
-    shutil.rmtree(tmp_dir)
+    tmp_dir = f"{os.getenv('OFS_STORAGE_DIR')}/tmp"
+    if os.path.exists(tmp_dir):
+        shutil.rmtree(tmp_dir)
     resource = boto3.resource("s3")
-    bucket = resource.Bucket(config.get("settings.cur_bucket"))
+    bucket = resource.Bucket(os.getenv("OFS_CUR_BUCKET"))
     for f in manifest["reportKeys"]:
         os.makedirs(
             os.path.dirname(f"{tmp_dir}/{f}"),
@@ -126,7 +121,7 @@ def download_files(manifest):
             # to the file is not in the manifest prior to June 2019
             print(f"Error downloading {f} - trying again with prefix")
             bucket.download_file(
-                f"{config.get('settings.cur_prefix') + f}",
+                f"{os.getenv('OFS_S3_PATH_PREFIX') + f}",
                 f"{tmp_dir}/{f}",
             )
 
@@ -142,7 +137,7 @@ def load_month(manifest, columns):
     Returns:
         None
     """
-    client = clickhouse_connect.get_client(host="localhost", username="default")
+    client = create_client()
     schema_string = ", ".join([f"{item['name']} {item['type']}" for item in columns])
     partition = int(parser.parse(manifest["billingPeriod"]["start"]).strftime("%Y%m"))
 
@@ -161,11 +156,10 @@ def load_month(manifest, columns):
         insert_file(
             client=client,
             table="aws",
-            file_path=f"{config['settings']['project_dir']}/{config['settings']['storage_dir']}/tmp/{f}",
+            file_path=f"{os.getenv('OFS_STORAGE_DIR')}/tmp/{f}",
             column_names=[column["name"] for column in columns],
             settings=settings,
         )
-    update_state(manifest)
 
 
 def do_we_load_it(manifest):
@@ -183,10 +177,12 @@ def do_we_load_it(manifest):
         bool: True if the manifest should be loaded, False otherwise.
     """
     start_date = parser.parse(manifest["billingPeriod"]["start"])
-    if start_date < config.get("settings.ingest_start_date"):
+    if start_date < parser.parse(
+        os.getenv("OFS_INGEST_START_DATE", "2018-01-01 00:00:00Z")
+    ):
         print(f"Skipping {start_date}")
         return False
-    client = clickhouse_connect.get_client(host="localhost", username="default")
+    client = create_client()
     # if the statement below returns a row, we've already loaded this month
     create_aws_state_table(client)
 
@@ -201,6 +197,12 @@ def do_we_load_it(manifest):
         )
         return False
     return True
+
+
+def cleanup():
+    tmp_dir = f"{os.getenv('OFS_STORAGE_DIR')}"
+    if os.path.exists(tmp_dir):
+        shutil.rmtree(tmp_dir)
 
 
 def update_state(manifest):
@@ -235,3 +237,5 @@ if __name__ == "__main__":
         columns = parse_columns(definition)
         download_files(definition)
         load_month(definition, columns)
+        update_state(definition)
+        cleanup()
