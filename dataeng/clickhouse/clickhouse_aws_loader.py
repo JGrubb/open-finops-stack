@@ -13,7 +13,7 @@ from clickhouse_connect.driver.tools import insert_file
 
 from clickhouse_client import create_client
 
-from dataeng.clickhouse.schema_handling import (
+from clickhouse.schema_handling import (
     create_aws_table,
     align_schemas,
     drop_partition,
