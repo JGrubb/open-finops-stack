@@ -1,3 +1,17 @@
 clickhouse:
   type: clickhouse:23
   disk: 5120
+  configuration:
+    databases:
+      - main
+    endpoints:
+      main_endpoint:
+        default_database: main
+        port: 8123
+        privileges:
+          main: admin
+      ro:
+        default_database: main
+        port: 9000
+        privileges:
+          main: ro

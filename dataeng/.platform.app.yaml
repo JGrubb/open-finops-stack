@@ -3,7 +3,7 @@ name: dataeng
 type: python:3.11
 
 relationships:
-  clickhouse_db: "clickhouse:clickhouse"
+  clickhouse_db: "clickhouse:main_endpoint"
 
 hooks:
   build: |
