@@ -3,15 +3,15 @@ clickhouse:
   disk: 5120
   configuration:
     databases:
-      - main
+      - default
     endpoints:
       main_endpoint:
-        default_database: main
+        default_database: default
         port: 8123
         privileges:
           main: admin
       ro:
-        default_database: main
-        port: 9000
+        default_database: default
+        port: 8123
         privileges:
           main: ro
