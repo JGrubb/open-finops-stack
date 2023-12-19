@@ -15,7 +15,7 @@ def create_client():
             host=psh_creds["host"],
             username=psh_creds["username"],
             password=psh_creds["password"],
-            port=8123,
+            port=psh_creds["port"],
         )
     else:
         credentials = dict(
