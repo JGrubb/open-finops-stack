@@ -4,7 +4,11 @@ import boto3
 
 
 def return_s3_bucket():
-    resource = boto3.resource("s3")
+    resource = boto3.resource(
+        "s3",
+        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+    )
     return resource.Bucket(os.getenv("OFS_CUR_BUCKET"))
 
 
