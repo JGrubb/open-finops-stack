@@ -234,17 +234,20 @@ def update_state(manifest):
     Returns:
         None
     """
-    client = clickhouse_connect.get_client(host="localhost", username="default")
-    client.query(
-        f"""
-        INSERT INTO aws_state
-        VALUES (
-            toDateTime('{parser.parse(manifest["billingPeriod"]["start"]).strftime("%Y-%m-%d %H:%M:%S")}'),
-            '{manifest['assemblyId']}',
-            now()
+    client = client = create_client()
+    try:
+        client.query(
+            f"""
+            INSERT INTO aws_state
+            VALUES (
+                toDateTime('{parser.parse(manifest["billingPeriod"]["start"]).strftime("%Y-%m-%d %H:%M:%S")}'),
+                '{manifest['assemblyId']}',
+                now()
+            )
+        """
         )
-    """
-    )
+    except Exception as e:
+        print(e)
 
 
 def cleanup():
