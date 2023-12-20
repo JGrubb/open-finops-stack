@@ -1,6 +1,6 @@
 clickhouse:
   type: clickhouse:23
-  disk: 10240
+  disk: 15360
   size: XL
   configuration:
     databases:

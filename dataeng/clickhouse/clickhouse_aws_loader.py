@@ -8,7 +8,6 @@ import shutil
 import boto3
 import botocore.exceptions as botoexceptions
 
-import clickhouse_connect
 from clickhouse_connect.driver.tools import insert_file
 
 from clickhouse_client import create_client
@@ -152,6 +151,9 @@ def load_month(manifest, columns):
     for f in manifest["reportKeys"]:
         file_path = f"{os.getenv('OFS_STORAGE_DIR')}/tmp/{f}"
         load_file(file_path, columns)
+    time.sleep(
+        300
+    )  # if we give it a few minutes, Clickhouse will compress the data and we can save some space
 
 
 def load_file(file_path, columns):
