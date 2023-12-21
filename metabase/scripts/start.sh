@@ -1,36 +1,33 @@
 #!/bin/sh
 
-tunnel_to_db () {
-    # Open a local tunnel to the environment.
-    platform tunnel:close -y
-    platform tunnel:open -y
+# Load header
+. ./header.inc
 
-    # Mock PLATFORM_RELATIONSHIPS variable locally. 
-    export PLATFORM_RELATIONSHIPS="$(platform tunnel:info --encode)"
-}
+# Port to Listen on
+export MB_JETTY_PORT=${PORT}
 
-# Local.
-if [ -z ${PLATFORM_PROJECT_ENTROPY+x} ]; then 
-    export MB_JETTY_PORT=8888
+# Database Conection Info
+export MB_DB_TYPE=postgres
+export MB_DB_DBNAME=$(echo $PLATFORM_RELATIONSHIPS | base64 --decode | jq -r .metabasedb[0].path)
+export MB_DB_PORT=$(echo $PLATFORM_RELATIONSHIPS | base64 --decode | jq  -r .metabasedb[0].port)
+export MB_DB_USER=$(echo $PLATFORM_RELATIONSHIPS | base64 --decode | jq  -r .metabasedb[0].username)
+export MB_DB_PASS=$(echo $PLATFORM_RELATIONSHIPS | base64 --decode | jq -r .metabasedb[0].password)
+export MB_DB_HOST=$(echo $PLATFORM_RELATIONSHIPS | base64 --decode | jq -r .metabasedb[0].host)
 
-    # Open a tunnel to the current service.
-    tunnel_to_db
+# Email
+export MB_EMAIL_SMTP_HOST=$PLATFORM_SMTP_HOST
+export MB_EMAIL_SMTP_PORT=25
+export MB_EMAIL_SMTP_USERNAME=""
+export MB_EMAIL_SMTP_PASSWORD=""
 
-    # Set database connection variables.
-    export MB_DB_TYPE=postgres
-    export MB_DB_DBNAME=$(echo $PLATFORM_RELATIONSHIPS | base64 --decode | jq -r ".database[0].path")
-    export MB_DB_HOST=$(echo $PLATFORM_RELATIONSHIPS | base64 --decode | jq -r ".database[0].host")
-    export MB_DB_PORT=$(echo $PLATFORM_RELATIONSHIPS | base64 --decode | jq -r ".database[0].port")
-    export MB_DB_USER=$(echo $PLATFORM_RELATIONSHIPS | base64 --decode | jq -r ".database[0].username")
-    export MB_DB_PASS=$(echo $PLATFORM_RELATIONSHIPS | base64 --decode | jq -r ".database[0].password")
+# Grab memory limits
+export MEM_AVAILABLE=$(bin/jq .info.limits.memory /run/config.json)
 
-    # Limit heap size
-    export JAVA_TOOL_OPTIONS="-Xmx500m -XX:+ExitOnOutOfMemoryError -Xlog:gc*"
-    export JAR_FILE=$(pwd)/metabase/metabase.jar
+# Limit Heapsize
+export JAVA_TOOL_OPTIONS="-XX:+CMSClassUnloadingEnabled -XX:+UseConcMarkSweepGC -XX:MaxPermSize=${MEM_AVAILABLE}m -Xmx${MEM_AVAILABLE}m"
 
-# Platform.sh.
-else 
-    export JAR_FILE=$PLATFORM_APP_DIR/metabase/metabase.jar
-fi
+# This ensures that the child process below gets stopped when Platform.sh kills this script.
+trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
 
-java -jar $JAR_FILE
+#java -jar ${METABASE_HOME}/${METABASE_JAR} migrate release-locks
+exec java -jar ${METABASE_HOME}/${METABASE_JAR}
