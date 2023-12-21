@@ -16,3 +16,7 @@ clickhouse:
         port: 8123
         privileges:
           default: ro
+
+metabase_db:
+    type: postgresql:13
+    disk: 1024
