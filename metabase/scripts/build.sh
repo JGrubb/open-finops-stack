@@ -14,6 +14,6 @@ fi
     METABASE_VERSION="0.47.10"
 
 # Download Metabase.
-echo "Downloading Metabase ($METABASE_VERSION)"
+echo "Downloading Metabase ($METABASE_VERSION) to $METABASE_HOME/metabase.jar"
 wget --no-cookies --no-check-certificate -q -O \
     "$METABASE_HOME/metabase.jar" "http://downloads.metabase.com/$METABASE_VERSION/metabase.jar"
