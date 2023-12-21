@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Load header
-. ./header.inc
+. ./scripts/header.inc
 
 # Desired version can be set by means of an enviromental variable
 if [ -z "$METABASE_VERSION" ]; then 
