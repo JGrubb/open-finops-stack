@@ -4,7 +4,7 @@
 name: metabase
 
 # The type key specifies the language and version for your application.
-type: java:11
+type: java:17
 
 # The relationships of the application with services or other applications.
 # The left-hand side is the name of the relationship as it will be exposed
@@ -22,11 +22,11 @@ hooks:
         path: scripts/build.sh
 
 # The configuration of the application when it is exposed to the web.
-# web:
-#     commands:
-#         start: !include
-#             type: string
-#             path: scripts/start.sh
+web:
+    commands:
+        start: !include
+            type: string
+            path: scripts/start.sh
 
 crons:
     auto-updates:
