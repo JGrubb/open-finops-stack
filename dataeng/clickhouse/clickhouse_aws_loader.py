@@ -1,25 +1,23 @@
 import json
 import os
 import re
-import glob
+import time
 from dateutil import parser
 import shutil
 
 import boto3
 import botocore.exceptions as botoexceptions
 
-import clickhouse_connect
 from clickhouse_connect.driver.tools import insert_file
 
-from utils.configurator import Config
-from dataeng.clickhouse.schema_handling import (
+from clickhouse_client import create_client
+
+from clickhouse.schema_handling import (
     create_aws_table,
     align_schemas,
     drop_partition,
     create_aws_state_table,
 )
-
-config = Config("config.toml")
 
 
 def fetch_all_manifests():
@@ -30,14 +28,11 @@ def fetch_all_manifests():
         list: A list of file paths representing the manifests.
     """
     manifests = []
-    for path in config.get("settings.report_dirs"):
-        pattern = f"**/{path}-Manifest.json"
-        glob_path = f"{config.get('settings.project_dir')}/{config.get('settings.storage_dir')}/{config.get('settings.cur_prefix')}/{pattern}"
-        for manifest in glob.glob(
-            glob_path,
-            recursive=True,
-        ):
-            manifests.append(manifest)
+    pattern = r"[a-z\-\d]+-Manifest\.json"
+    for root, dirs, files in os.walk(os.getenv("OFS_STORAGE_DIR")):
+        for file in files:
+            if re.match(pattern, file):
+                manifests.append(os.path.join(root, file))
     return sorted(manifests)
 
 
@@ -104,12 +99,15 @@ def download_files(manifest):
     Returns:
         None
     """
-    tmp_dir = (
-        f"{config.get('settings.project_dir')}/{config.get('settings.storage_dir')}/tmp"
+    tmp_dir = f"{os.getenv('OFS_STORAGE_DIR')}/tmp"
+    if os.path.exists(tmp_dir):
+        shutil.rmtree(tmp_dir)
+    resource = boto3.resource(
+        "s3",
+        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
     )
-    shutil.rmtree(tmp_dir)
-    resource = boto3.resource("s3")
-    bucket = resource.Bucket(config.get("settings.cur_bucket"))
+    bucket = resource.Bucket(os.getenv("OFS_CUR_BUCKET"))
     for f in manifest["reportKeys"]:
         os.makedirs(
             os.path.dirname(f"{tmp_dir}/{f}"),
@@ -126,7 +124,7 @@ def download_files(manifest):
             # to the file is not in the manifest prior to June 2019
             print(f"Error downloading {f} - trying again with prefix")
             bucket.download_file(
-                f"{config.get('settings.cur_prefix') + f}",
+                f"{os.getenv('OFS_S3_PATH_PREFIX') + f}",
                 f"{tmp_dir}/{f}",
             )
 
@@ -142,7 +140,7 @@ def load_month(manifest, columns):
     Returns:
         None
     """
-    client = clickhouse_connect.get_client(host="localhost", username="default")
+    client = create_client()
     schema_string = ", ".join([f"{item['name']} {item['type']}" for item in columns])
     partition = int(parser.parse(manifest["billingPeriod"]["start"]).strftime("%Y%m"))
 
@@ -151,21 +149,44 @@ def load_month(manifest, columns):
     drop_partition(client, partition)
 
     for f in manifest["reportKeys"]:
-        print(f"Loading {f}")
-        settings = {
-            "input_format_csv_skip_first_lines": 1,
-            "date_time_input_format": "best_effort",
-            "session_timezone": "UTC",
-        }
+        file_path = f"{os.getenv('OFS_STORAGE_DIR')}/tmp/{f}"
+        load_file(file_path, columns)
+    time.sleep(
+        300
+    )  # if we give it a few minutes, Clickhouse will compress the data and we can save some space on the DB
 
+
+def load_file(file_path, columns):
+    """
+    Loads a single file into ClickHouse.
+
+    Args:
+        file (str): The path to the file to be loaded.
+        columns (list): The list of columns for the ClickHouse table.
+
+    Returns:
+        None
+    """
+    client = create_client()
+
+    print(f"Loading {file_path}")
+    settings = {
+        "input_format_csv_skip_first_lines": 1,
+        "date_time_input_format": "best_effort",
+        "session_timezone": "UTC",
+    }
+    try:
         insert_file(
             client=client,
             table="aws",
-            file_path=f"{config['settings']['project_dir']}/{config['settings']['storage_dir']}/tmp/{f}",
+            file_path=file_path,
             column_names=[column["name"] for column in columns],
             settings=settings,
         )
-    update_state(manifest)
+    except Exception as e:
+        print(e)  # not this is not pretty and should be improved
+        time.sleep(10)
+        load_file(file_path, columns)
 
 
 def do_we_load_it(manifest):
@@ -183,10 +204,12 @@ def do_we_load_it(manifest):
         bool: True if the manifest should be loaded, False otherwise.
     """
     start_date = parser.parse(manifest["billingPeriod"]["start"])
-    if start_date < config.get("settings.ingest_start_date"):
+    if start_date < parser.parse(
+        os.getenv("OFS_INGEST_START_DATE", "2023-01-01 00:00:00Z")
+    ):
         print(f"Skipping {start_date}")
         return False
-    client = clickhouse_connect.get_client(host="localhost", username="default")
+    client = create_client()
     # if the statement below returns a row, we've already loaded this month
     create_aws_state_table(client)
 
@@ -213,17 +236,26 @@ def update_state(manifest):
     Returns:
         None
     """
-    client = clickhouse_connect.get_client(host="localhost", username="default")
-    client.query(
-        f"""
-        INSERT INTO aws_state
-        VALUES (
-            toDateTime('{parser.parse(manifest["billingPeriod"]["start"]).strftime("%Y-%m-%d %H:%M:%S")}'),
-            '{manifest['assemblyId']}',
-            now()
+    client = client = create_client()
+    try:
+        client.query(
+            f"""
+            INSERT INTO aws_state
+            VALUES (
+                toDateTime('{parser.parse(manifest["billingPeriod"]["start"]).strftime("%Y-%m-%d %H:%M:%S")}'),
+                '{manifest['assemblyId']}',
+                now()
+            )
+        """
         )
-    """
-    )
+    except Exception as e:
+        print(e)
+
+
+def cleanup():
+    tmp_dir = f"{os.getenv('OFS_STORAGE_DIR')}/tmp"
+    if os.path.exists(tmp_dir):
+        shutil.rmtree(tmp_dir)
 
 
 if __name__ == "__main__":
@@ -235,3 +267,5 @@ if __name__ == "__main__":
         columns = parse_columns(definition)
         download_files(definition)
         load_month(definition, columns)
+        update_state(definition)
+        cleanup()

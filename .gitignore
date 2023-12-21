@@ -1,6 +1,5 @@
 venv
 storage
 config.toml
-*__pycache__
-config*
+__pycache__
 .vscode

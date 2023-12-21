@@ -1,7 +1,7 @@
 def create_aws_table(client, schema_string: str):
     client.command(
         f"""
-        CREATE TABLE IF NOT EXISTS default.aws
+        CREATE TABLE IF NOT EXISTS aws
         (
             {schema_string}
         )
@@ -15,7 +15,7 @@ def create_aws_table(client, schema_string: str):
 def create_aws_state_table(client):
     client.command(
         f"""
-        CREATE TABLE IF NOT EXISTS default.aws_state
+        CREATE TABLE IF NOT EXISTS aws_state
         (
             billing_month DateTime,
             assembly_id String,

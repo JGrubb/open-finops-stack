@@ -1,0 +1,60 @@
+# .platform.app.yaml
+
+# The name of this application, which must be unique within a project.
+name: metabase
+
+# The type key specifies the language and version for your application.
+type: java:17
+
+# The relationships of the application with services or other applications.
+# The left-hand side is the name of the relationship as it will be exposed
+# to the application in the PLATFORM_RELATIONSHIPS variable. The right-hand
+# side is in the form `<service name>:<endpoint name>`.
+relationships:
+    metabasedb: "metabase_db:postgresql"
+    clickhouse: "clickhouse:ro"
+
+# The hooks that will be triggered when the package is deployed.
+hooks:
+    # Build hooks can modify the application files on disk but not access any services like databases.
+    build: !include
+        type: string
+        path: scripts/build.sh
+
+# The configuration of the application when it is exposed to the web.
+web:
+    commands:
+        start: !include
+            type: string
+            path: scripts/start.sh
+
+crons:
+    auto-updates:
+        spec: '0 1 * * *'
+        cmd: |
+            if [ "$PLATFORM_BRANCH" = updates ]; then
+                platform environment:sync code data --no-wait --yes
+                platform source-operation:run update --no-wait --yes
+            fi
+
+source:
+    operations:
+        update:
+            command: !include
+                type: string
+                path: scripts/update.sh
+
+# The size of the persistent disk of the application (in MB).
+disk: 1024
+
+# The mounts that will be performed when the package is deployed.
+mounts:
+    temp:
+        source: local
+        source_path: temp
+    data:
+        source: local
+        source_path: data
+    plugins:
+        source: local
+        source_path: plugins

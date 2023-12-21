@@ -1,0 +1,22 @@
+clickhouse:
+  type: clickhouse:23
+  disk: 15360
+  size: XL
+  configuration:
+    databases:
+      - default
+    endpoints:
+      main_endpoint:
+        default_database: default
+        port: 8123
+        privileges:
+          default: admin
+      ro:
+        default_database: default
+        port: 8123
+        privileges:
+          default: ro
+
+metabase_db:
+    type: postgresql:13
+    disk: 1024

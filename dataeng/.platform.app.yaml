@@ -1,0 +1,32 @@
+name: dataeng
+
+type: python:3.11
+
+size: S
+
+relationships:
+  clickhouse_db: "clickhouse:main_endpoint"
+
+hooks:
+  build: |
+    pip install -r requirements.txt
+
+disk: 5120
+
+mounts:
+  "/storage":
+    source: local
+    source_path: "storage"
+
+variables:
+  env:
+    OFS_STORAGE_DIR: "/app/storage"
+    PYTHONPATH: "/app"
+
+crons:
+  aws_nightly:
+    # 9 AM UTC every day
+    spec: "0 9 * * *"
+    cmd: |
+      python aws/manifests.py
+      python clickhouse/clickhouse_aws_loader.py
