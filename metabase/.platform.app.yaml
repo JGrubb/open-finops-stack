@@ -22,11 +22,11 @@ hooks:
         path: scripts/build.sh
 
 # The configuration of the application when it is exposed to the web.
-web:
-    commands:
-        start: !include
-            type: string
-            path: scripts/start.sh
+# web:
+#     commands:
+#         start: !include
+#             type: string
+#             path: scripts/start.sh
 
 crons:
     auto-updates:
