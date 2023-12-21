@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Load header
-. ./header.inc
+. ./scripts/header.inc
 
 # Port to Listen on
 export MB_JETTY_PORT=${PORT}
