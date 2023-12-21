@@ -37,12 +37,12 @@ crons:
                 platform source-operation:run update --no-wait --yes
             fi
 
-source:
-    operations:
-        update:
-            command: !include
-                type: string
-                path: scripts/update.sh
+# source:
+#     operations:
+#         update:
+#             command: !include
+#                 type: string
+#                 path: scripts/update.sh
 
 # The size of the persistent disk of the application (in MB).
 disk: 1024
