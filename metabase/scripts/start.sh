@@ -23,11 +23,5 @@ export MB_EMAIL_SMTP_PASSWORD=""
 # Grab memory limits
 export MEM_AVAILABLE=$(bin/jq .info.limits.memory /run/config.json)
 
-# Limit Heapsize
-export JAVA_TOOL_OPTIONS="-Xmx${MEM_AVAILABLE}M"
-
-# This ensures that the child process below gets stopped when Platform.sh kills this script.
-trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
-
 #java -jar ${METABASE_HOME}/${METABASE_JAR} migrate release-locks
-exec java -jar ${METABASE_HOME}/${METABASE_JAR}
+exec java -Xmx${MEM_AVAILABLE}M -jar ${METABASE_HOME}/${METABASE_JAR}
