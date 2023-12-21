@@ -2,7 +2,7 @@ name: dataeng
 
 type: python:3.11
 
-size: M
+size: S
 
 relationships:
   clickhouse_db: "clickhouse:main_endpoint"
