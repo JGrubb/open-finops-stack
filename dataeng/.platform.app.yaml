@@ -22,3 +22,11 @@ variables:
   env:
     OFS_STORAGE_DIR: "/app/storage"
     PYTHONPATH: "/app"
+
+crons:
+  aws_nightly:
+    # 9 AM UTC every day
+    spec: "0 9 * * *"
+    cmd: |
+      python aws/manifests.py
+      python clickhouse/clickhouse_aws_loader.py
