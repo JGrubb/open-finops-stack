@@ -153,7 +153,7 @@ def load_month(manifest, columns):
         load_file(file_path, columns)
     time.sleep(
         300
-    )  # if we give it a few minutes, Clickhouse will compress the data and we can save some space
+    )  # if we give it a few minutes, Clickhouse will compress the data and we can save some space on the DB
 
 
 def load_file(file_path, columns):
@@ -184,7 +184,7 @@ def load_file(file_path, columns):
             settings=settings,
         )
     except Exception as e:
-        print(e)
+        print(e)  # not this is not pretty and should be improved
         time.sleep(10)
         load_file(file_path, columns)
 
