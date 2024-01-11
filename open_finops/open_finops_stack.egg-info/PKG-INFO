@@ -1,0 +1,6 @@
+Metadata-Version: 2.1
+Name: open-finops-stack
+Version: 0.1.0
+Requires-Dist: boto3
+Requires-Dist: clickhouse-connect
+Requires-Dist: platformshconfig

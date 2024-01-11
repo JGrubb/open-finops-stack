@@ -1,0 +1,16 @@
+setup.py
+open_finops/__init__.py
+open_finops/aws.py
+open_finops/aws/__init__.py
+open_finops/aws/manifest_downloader.py
+open_finops/aws/manifests.py
+open_finops/clickhouse/__init__.py
+open_finops/clickhouse/clickhouse_aws_loader.py
+open_finops/clickhouse/clickhouse_client.py
+open_finops/clickhouse/schema_handling.py
+open_finops_stack.egg-info/PKG-INFO
+open_finops_stack.egg-info/SOURCES.txt
+open_finops_stack.egg-info/dependency_links.txt
+open_finops_stack.egg-info/requires.txt
+open_finops_stack.egg-info/top_level.txt
+tests/__init__.py

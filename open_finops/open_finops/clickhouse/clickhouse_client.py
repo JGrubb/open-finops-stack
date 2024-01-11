@@ -3,7 +3,7 @@ import clickhouse_connect
 from platformshconfig import Config as PlatformshConfig
 
 
-def create_client():
+def create_client(settings=None):
     try:
         psh_config = PlatformshConfig()
         psh_creds = psh_config.credentials("clickhouse_db")
@@ -16,6 +16,7 @@ def create_client():
             username=psh_creds["username"],
             password=psh_creds["password"],
             port=psh_creds["port"],
+            settings=settings,
         )
     else:
         credentials = dict(
@@ -23,6 +24,7 @@ def create_client():
             username=os.getenv("CLICKHOUSE_USERNAME", "default"),
             password=os.getenv("CLICKHOUSE_PASSWORD", ""),
             port=os.getenv("CLICKHOUSE_PORT", "8123"),
+            settings=settings,
         )
 
     client = clickhouse_connect.get_client(**credentials)

@@ -10,7 +10,7 @@ import botocore.exceptions as botoexceptions
 
 from clickhouse_connect.driver.tools import insert_file
 
-from clickhouse_client import create_client
+from .clickhouse_client import create_client
 
 from clickhouse.schema_handling import (
     create_aws_table,
@@ -20,7 +20,7 @@ from clickhouse.schema_handling import (
 )
 
 
-def fetch_all_manifests():
+def fetch_all_manifests(params):
     """
     Fetches all manifests based in the configured report directories and returns them in sorted order.
 
@@ -28,7 +28,7 @@ def fetch_all_manifests():
         list: A list of file paths representing the manifests.
     """
     manifests = []
-    pattern = r"[a-z\-\d]+-Manifest\.json"
+    pattern = rf"{params.export_name}-Manifest\.json"
     for root, dirs, files in os.walk(os.getenv("OFS_STORAGE_DIR")):
         for file in files:
             if re.match(pattern, file):
@@ -51,7 +51,7 @@ def load_manifest(file):
     return manifest
 
 
-def parse_columns(manifest):
+def parse_columns(manifest, params):
     """
     Parses the columns from the given manifest and returns a list of dictionaries
     containing the column name and its corresponding type.  This maps AWS CUR types to
@@ -186,7 +186,7 @@ def load_file(file_path, columns):
         load_file(file_path, columns)
 
 
-def do_we_load_it(manifest):
+def do_we_load_it(manifest, params):
     """
     Checks if the given manifest should be loaded into ClickHouse.  This is determined
     by checking the start date of the billing period against the configured ingest_start_date.
@@ -200,26 +200,40 @@ def do_we_load_it(manifest):
     Returns:
         bool: True if the manifest should be loaded, False otherwise.
     """
-    start_date = parser.parse(manifest["billingPeriod"]["start"])
-    if start_date < parser.parse(
-        os.getenv("OFS_INGEST_START_DATE", "2023-01-01 00:00:00Z")
-    ):
-        print(f"Skipping {start_date}")
-        return False
     client = create_client()
     # if the statement below returns a row, we've already loaded this month
-    create_aws_state_table(client)
+    create_aws_state_table(client, params.cur_version)
 
-    result = client.command(
-        f"""
-        SELECT 1 FROM aws_state WHERE assembly_id = '{manifest['assemblyId']}' AND billing_month = toDateTime('{start_date.strftime("%Y-%m-%d %H:%M:%S")}')
-    """
-    )
-    if result == 1:
-        print(
-            f"Skipping manifest {manifest['assemblyId']} for {start_date} - already loaded"
+    if params.cur_version == "v1":
+        start_date = parser.parse(manifest["billingPeriod"]["start"])
+        if start_date < parser.parse(
+            os.getenv("OFS_INGEST_START_DATE", "2023-01-01 00:00:00Z")
+        ):
+            print(f"Skipping {start_date}")
+            return False
+
+        result = client.command(
+            f"""
+            SELECT 1 FROM aws_state_{params.cur_version} WHERE assembly_id = '{manifest['assemblyId']}' AND billing_month = toDateTime('{start_date.strftime("%Y-%m-%d %H:%M:%S")}')
+        """
         )
-        return False
+        if result == 1:
+            print(
+                f"Skipping manifest {manifest['assemblyId']} for {start_date} - already loaded"
+            )
+            return False
+    if params.cur_version == "v2":
+        result = client.command(
+            f"""
+            SELECT 1 FROM aws_state_{params.cur_version} WHERE assembly_id = '{manifest['executionId']}'
+        """
+        )
+        if result == 1:
+            print(
+                f"Skipping manifest {manifest['executionId']} for {start_date} - already loaded"
+            )
+            return False
+        return True
     return True
 
 
@@ -255,18 +269,14 @@ def cleanup():
         shutil.rmtree(tmp_dir)
 
 
-if __name__ == "__main__":
-    manifests = fetch_all_manifests()
+def main(params):
+    manifests = fetch_all_manifests(params)
     for manifest in manifests:
         definition = load_manifest(manifest)
-        if do_we_load_it(definition) == False:
+        if do_we_load_it(definition, params) == False:
             continue
         columns = parse_columns(definition)
         download_files(definition)
         load_month(definition, columns)
         update_state(definition)
         cleanup()
-        print("Sleeping for 15 minutes to allow Clickhouse to compress the data")
-        time.sleep(
-            900
-        )  # if we give it a few minutes, Clickhouse will compress the data and we can save some space on the DB
