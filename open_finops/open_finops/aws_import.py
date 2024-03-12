@@ -1,5 +1,6 @@
 import argparse
 import json
+import datetime
 
 from aws import Aws_v1, Aws_v2
 from aws.manifest_normalizer import AWSManifestNormalizer
@@ -43,6 +44,18 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--start_date",
+    type=lambda s: datetime.datetime.strptime(s, "%Y-%m"),
+    help="The start date for the import in the format YYYY-MM",
+)
+
+parser.add_argument(
+    "--end_date",
+    type=lambda s: datetime.datetime.strptime(s, "%Y-%m"),
+    help="The end date for the import in the format YYYY-MM",
+)
+
+parser.add_argument(
     "--reset",
     action="store_true",
     help="Drops all data tables and starts over",
@@ -65,7 +78,12 @@ for path in aws.manifest_paths:
     with open(path, "r") as f:
         manifest = json.load(f)
         manifest = AWSManifestNormalizer(manifest, args.cur_version, path).normalize()
-        if not do_we_load_it(manifest, cur_version=args.cur_version):
+        if not do_we_load_it(
+            manifest,
+            cur_version=args.cur_version,
+            start_date=args.start_date,
+            end_date=args.end_date,
+        ):
             continue
         billing_file_paths = aws.download_billing_files(manifest)
         schema_handler = SchemaHandler()
@@ -76,6 +94,5 @@ for path in aws.manifest_paths:
             load_file(args.cur_version, file, manifest["columns"])
         update_state(manifest, args.cur_version)
         print(f"Loaded {manifest['billing_period']}")
-
 
 print(aws.manifest_paths)
