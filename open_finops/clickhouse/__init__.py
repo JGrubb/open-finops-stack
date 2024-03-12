@@ -7,20 +7,19 @@ from clickhouse_connect.driver.tools import insert_file
 
 def do_we_load_it(manifest: dict, **kwargs):
     """
-    Determine if we should load the given manifest.  Three things to check in this order:
-    - The ingest_start_date variable is set and the manifest's start date is after it.
-    - The ingest_end_date is set and the manifest's end date is before it.
-    - The billing_month in scope for that manifest has already been loaded into the aws_state table.
-
-    Unfortunately the v2 CUR doesn't contain the billing month, so we have to use the file path to determine it.
+    Determines whether to load a manifest based on the provided start and end dates.
 
     Args:
-        manifest (dict): The manifest containing the report keys.
-        file_path (str): The path to the file, this (unfortunately) contains useful information.
+        manifest (dict): The manifest to be evaluated.
+        **kwargs: Additional keyword arguments.
+            - start_date (datetime): The start date for loading manifests.
+            - end_date (datetime): The end date for loading manifests.
+            - cur_version (str): The current version.
 
     Returns:
-        bool: True if we should load the manifest, False otherwise.
+        bool: True if the manifest should be loaded, False otherwise.
     """
+
     if kwargs.get("start_date") and manifest["billing_period"] < kwargs[
         "start_date"
     ].replace(tzinfo=pytz.UTC):
@@ -57,15 +56,17 @@ def do_we_load_it(manifest: dict, **kwargs):
 
 def load_file(version, file_path, columns):
     """
-    Loads a single file into ClickHouse.
+    Loads a file into ClickHouse database.
 
     Args:
-        file (str): The path to the file to be loaded.
-        columns (list): The list of columns for the ClickHouse table.
+        version (str): The version of the data.
+        file_path (str): The path to the file to be loaded.
+        columns (list): A list of dictionaries representing the columns of the table.
 
     Returns:
         None
     """
+
     client = create_client()
 
     print(f"Loading {file_path}")
@@ -97,5 +98,3 @@ def load_file(version, file_path, columns):
             )
     except Exception as e:
         print(e)  # not this is not pretty and should be improved
-        time.sleep(10)
-        load_file(file_path, columns)

@@ -1,6 +1,5 @@
 import argparse
 import json
-import dateparser
 
 from aws import Aws_v1, Aws_v2
 from aws.manifest_normalizer import AWSManifestNormalizer

@@ -71,6 +71,6 @@ class SchemaHandler:
             return None
         self.client.command(
             f"""
-            ALTER TABLE aws_data_{cur_version} DROP PARTITION {partition_label})
+            ALTER TABLE aws_data_{cur_version} DROP PARTITION '{partition_label}'
             """
         )

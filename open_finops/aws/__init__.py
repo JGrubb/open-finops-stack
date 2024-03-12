@@ -2,7 +2,6 @@ import os
 import re
 import shutil
 import boto3
-import json
 
 
 class S3Handler:
