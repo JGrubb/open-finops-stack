@@ -4,3 +4,4 @@ __pycache__/
 storage/
 data/
 .vscode/
+.DS_Store

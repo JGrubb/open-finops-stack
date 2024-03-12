@@ -1,8 +1,18 @@
-What is the open finops stack?
+# The Open FinOps Stack
 
-It's a pretty simple idea, it's an open source implementation of basic, cross-cloud FinOps visibility tooling.  It handles the ingestion and normalization of AWS, Azure, and eventually GCP billing data and others into a Clickhouse database (open source columnar, analytics data warehouse). 
+The goal of the Open FinOps Stack is to provide a welcoming first stop on the journey of a new FinOps practitioner.  FinOps is a very data heavy profession, and the market for FinOps tooling to help the new practitioner set up a baseline of data collection and reporting is well saturated.  The Open FinOps Stack aims to be a free, open-source alternative to these paid tools.
 
-Soon it will use DBT to normalize all that data into the FOCUS - finops open cost and usage spec - schema.  Eventually it will merge all of that together into 1 big billing data table, which is the end goal of FOCUS as far as I'm concerned.  This will let practitioners build cost reporting in whatever BI tool they want, but the stack will come with scripts to set up Metabase, which is what we use at my employer.
+```mermaid
+flowchart LR
 
----
+    AA[(AWS v1 and v2 CUR)] --> A
+    AB[(GCP bill)] --> B
+    AC[("Azure Amortized bill
+    Do we need the actual?")] --> C
+    A(AWS - intermediate) --> D
+    B(GCP - intermediate) --> D
+    C(Azure - intermediate) --> D
+    D(Unified FOCUS cloud bill) --> E(The real value!!)
+```
 
+This is a simplified diagram, but the goal of the OFS is to make it easy for practitioners to get to a Unified cloud bill, per the FOCUS spec.
