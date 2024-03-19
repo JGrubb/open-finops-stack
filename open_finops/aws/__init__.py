@@ -3,6 +3,8 @@ import re
 import shutil
 import boto3
 
+from clickhouse.schema_handler import AwsSchemaHandler
+
 
 class S3Handler:
     def __init__(self, bucket, prefix, export_name):
@@ -107,6 +109,15 @@ class Aws_v2(S3Handler):
     def __init__(self, bucket, prefix, export_name):
         super().__init__(bucket, prefix, export_name)
         self.pattern = rf"{self.prefix}/{self.export_name}/metadata/BILLING_PERIOD=\d{{4}}-\d{{2}}/{self.export_name}-Manifest\.json"
+
+
+class AWSSchemaSetup:
+    def __init__(self, cur_version: str):
+        self.schema_handler = AwsSchemaHandler(cur_version)
+
+    def setup(self):
+        self.schema_handler.create_aws_state_table()
+        self.schema_handler.create_aws_data_table()
 
 
 if __name__ == "__main__":

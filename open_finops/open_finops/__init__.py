@@ -1,28 +1,12 @@
 import pytz
-from clickhouse.schema_handler import SchemaHandler
 from clickhouse.clickhouse_client import create_client
-
-
-class ClickhouseSetup:
-    def main(self):
-        schema_handler = SchemaHandler()
-        schema_handler.create_aws_v1_table()
-        schema_handler.create_aws_v2_table()
-        schema_handler.create_aws_state_table("v1")
-        schema_handler.create_aws_state_table("v2")
-        return None
-
-
-def bootstrap():
-    setup = ClickhouseSetup()
-    setup.main()
 
 
 def do_we_load_it(manifest: dict, **kwargs):
     """
     Determine if we should load the given manifest.  Three things to check in this order:
-    - The ingest_start_date variable is set and the manifest's start date is after it.
-    - The ingest_end_date is set and the manifest's end date is before it.
+    - The ingest_start_date variable is set and the manifest's start date is on or after it.
+    - The ingest_end_date is set and the manifest's start date is before it.
     - The billing_month in scope for that manifest has already been loaded into the aws_state table.
 
     Unfortunately the v2 CUR doesn't contain the billing month, so we have to use the file path to determine it.

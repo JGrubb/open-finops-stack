@@ -2,10 +2,10 @@ import argparse
 import json
 import datetime
 
-from aws import Aws_v1, Aws_v2
+from aws import Aws_v1, Aws_v2, AWSSchemaSetup
 from aws.manifest_normalizer import AWSManifestNormalizer
-from open_finops import bootstrap, do_we_load_it, update_state
-from clickhouse.schema_handler import SchemaHandler
+from open_finops import do_we_load_it, update_state
+from clickhouse.schema_handler import AwsSchemaHandler
 from clickhouse import load_file
 
 # Create the parser
@@ -58,14 +58,14 @@ parser.add_argument(
 parser.add_argument(
     "--reset",
     action="store_true",
-    help="Drops all data tables and starts over",
+    help="Drops all tables and starts over",
 )
 
 # Parse the arguments
 args = parser.parse_args()
 
 # set up the tables if this is a fresh install
-bootstrap()
+AWSSchemaSetup(args.cur_version).setup()
 
 # fetch the manifest files
 if args.cur_version == "v1":
@@ -86,10 +86,9 @@ for path in aws.manifest_paths:
         ):
             continue
         billing_file_paths = aws.download_billing_files(manifest)
-        schema_handler = SchemaHandler()
-        if manifest["data_files"][0].endswith(".csv.gz"):
-            schema_handler.align_schemas(manifest["columns"], args.cur_version)
-        schema_handler.drop_partition(manifest["billing_period"], args.cur_version)
+        schema_handler = AwsSchemaHandler(args.cur_version)
+        schema_handler.align_schemas(manifest["columns"])
+        schema_handler.drop_partition(manifest["billing_period"])
         for file in billing_file_paths:
             load_file(args.cur_version, file, manifest["columns"])
         update_state(manifest, args.cur_version)
