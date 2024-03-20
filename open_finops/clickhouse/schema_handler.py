@@ -5,40 +5,39 @@ class SchemaHandler:
     def __init__(self):
         self.client = create_client()
 
-    def create_aws_v1_table(
+
+class AwsSchemaHandler(SchemaHandler):
+
+    def __init__(self, cur_version: str):
+        super().__init__()
+        self.cur_version = cur_version
+        if cur_version == "v1":
+            self.partition_column = "bill_BillingPeriodStartDate"
+            self.ordering_column = "lineItem_UsageStartDate"
+        else:  # cur_version == "v2"
+            self.partition_column = "bill_billing_period_start_date"
+            self.ordering_column = "line_item_usage_start_date"
+
+    def create_aws_data_table(
         self,
     ):
         self.client.command(
             f"""
-            CREATE TABLE IF NOT EXISTS aws_data_v1
+            CREATE TABLE IF NOT EXISTS aws_data_{self.cur_version}
             (
-                bill_BillingPeriodStartDate DateTime,
-                lineItem_UsageStartDate DateTime
+                {self.partition_column} DateTime,
+                {self.ordering_column} DateTime
             )
             ENGINE = MergeTree
-            ORDER BY lineItem_UsageStartDate
-            PARTITION BY toYYYYMM(bill_BillingPeriodStartDate)
+            ORDER BY {self.ordering_column}
+            PARTITION BY toYYYYMM({self.partition_column})
             """
         )
 
-    def create_aws_v2_table(self):
-        self.client.command(
-            f"""
-            CREATE TABLE IF NOT EXISTS aws_data_v2
-            (
-                bill_billing_period_start_date DateTime, 
-                line_item_usage_start_date DateTime
-            )
-            ENGINE = MergeTree
-            ORDER BY line_item_usage_start_date
-            PARTITION BY toYYYYMM(bill_billing_period_start_date)
-            """
-        )
-
-    def create_aws_state_table(self, cur_version: str):
+    def create_aws_state_table(self):
         result = self.client.command(
             f"""
-            CREATE TABLE IF NOT EXISTS aws_state_{cur_version}
+            CREATE TABLE IF NOT EXISTS aws_state_{self.cur_version}
             (
                 billing_month DateTime,
                 execution_id String,
@@ -50,27 +49,25 @@ class SchemaHandler:
         )
         return None
 
-    def align_schemas(self, columns: list, cur_version: str):
+    def align_schemas(self, columns: list):
         for column in columns:
             self.client.command(
-                f"ALTER TABLE aws_data_{cur_version} ADD COLUMN IF NOT EXISTS {column['name']} {column['type']}"
+                f"ALTER TABLE aws_data_{self.cur_version} ADD COLUMN IF NOT EXISTS {column['name']} {column['type']}"
             )
 
-    def drop_partition(self, billing_period: str, cur_version: str):
+    def drop_partition(self, billing_period: str):
         partition_label = billing_period.strftime("%Y%m")
-        if cur_version == "v1":
-            partition_column = "bill_BillingPeriodStartDate"
-        else:  # cur_version == "v2"
-            partition_column = "bill_billing_period_start_date"
         results = self.client.command(
             f"""
-            SELECT count(*) FROM aws_data_{cur_version} WHERE toYYYYMM({partition_column}) = '{partition_label}'
+            SELECT count(*) FROM aws_data_{self.cur_version} WHERE toYYYYMM({self.partition_column}) = '{partition_label}'
             """
         )
         if results == 0:
+            print(f"Partition {partition_label} does not exist")
             return None
+        print(f"Dropping partition {partition_label}")
         self.client.command(
             f"""
-            ALTER TABLE aws_data_{cur_version} DROP PARTITION '{partition_label}'
+            ALTER TABLE aws_data_{self.cur_version} DROP PARTITION '{partition_label}'
             """
         )

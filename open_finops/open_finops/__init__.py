@@ -1,28 +1,30 @@
 import pytz
-from clickhouse.schema_handler import SchemaHandler
+from clickhouse.schema_handler import AwsSchemaHandler
 from clickhouse.clickhouse_client import create_client
 
 
-class ClickhouseSetup:
+class ClickhouseAwsSetup:
+
+    def __init__(self, cur_version: str):
+        self.cur_version = cur_version
+        self.schema_handler = AwsSchemaHandler(cur_version)
+
     def main(self):
-        schema_handler = SchemaHandler()
-        schema_handler.create_aws_v1_table()
-        schema_handler.create_aws_v2_table()
-        schema_handler.create_aws_state_table("v1")
-        schema_handler.create_aws_state_table("v2")
+        self.schema_handler.create_aws_data_table()
+        self.schema_handler.create_aws_state_table(self.cur_version)
         return None
 
 
-def bootstrap():
-    setup = ClickhouseSetup()
+def aws_bootstrap(cur_version: str):
+    setup = ClickhouseAwsSetup(cur_version)
     setup.main()
 
 
-def do_we_load_it(manifest: dict, **kwargs):
+def do_we_load_it(manifest: dict, vendor: str, version: str, **kwargs):
     """
     Determine if we should load the given manifest.  Three things to check in this order:
-    - The ingest_start_date variable is set and the manifest's start date is after it.
-    - The ingest_end_date is set and the manifest's end date is before it.
+    - The ingest_start_date variable is set and the manifest's start date is on or after it.
+    - The ingest_end_date is set and the manifest's start date is before it.
     - The billing_month in scope for that manifest has already been loaded into the aws_state table.
 
     Unfortunately the v2 CUR doesn't contain the billing month, so we have to use the file path to determine it.
@@ -56,7 +58,7 @@ def do_we_load_it(manifest: dict, **kwargs):
 
     result = client.command(
         f"""
-        SELECT 1 FROM aws_state_{kwargs['cur_version']} 
+        SELECT 1 FROM {vendor}_state_{version} 
           WHERE execution_id = '{manifest['execution_id']}' 
           AND billing_month = toDateTime('{manifest['billing_period'].strftime("%Y-%m-%d %H:%M:%S")}')"""
     )
@@ -68,7 +70,7 @@ def do_we_load_it(manifest: dict, **kwargs):
     return True
 
 
-def update_state(manifest, cur_version):
+def update_state(manifest, vendor, version):
     """
     Update the state in the AWS table to reflect that a given manifest's assembly_id has been loaded.
 
@@ -82,7 +84,7 @@ def update_state(manifest, cur_version):
     try:
         client.query(
             f"""
-            INSERT INTO aws_state_{cur_version}
+            INSERT INTO {vendor}_state_{version}
             VALUES (
                 toDateTime('{manifest['billing_period'].strftime("%Y-%m-%d %H:%M:%S")}'),
                 '{manifest['execution_id']}',
