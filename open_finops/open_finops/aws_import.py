@@ -4,7 +4,7 @@ import datetime
 
 from aws import Aws_v1, Aws_v2, AWSSchemaSetup
 from aws.manifest_normalizer import AWSManifestNormalizer
-from open_finops import do_we_load_it, update_state
+from open_finops import aws_bootstrap, do_we_load_it, update_state
 from clickhouse.schema_handler import AwsSchemaHandler
 from clickhouse import load_file
 
@@ -80,7 +80,8 @@ for path in aws.manifest_paths:
         manifest = AWSManifestNormalizer(manifest, args.cur_version, path).normalize()
         if not do_we_load_it(
             manifest,
-            cur_version=args.cur_version,
+            "aws",
+            args.cur_version,
             start_date=args.start_date,
             end_date=args.end_date,
         ):
@@ -91,7 +92,7 @@ for path in aws.manifest_paths:
         schema_handler.drop_partition(manifest["billing_period"])
         for file in billing_file_paths:
             load_file(args.cur_version, file, manifest["columns"])
-        update_state(manifest, args.cur_version)
+        update_state(manifest, "aws", args.cur_version)
         print(f"Loaded {manifest['billing_period']}")
 
 print(aws.manifest_paths)
