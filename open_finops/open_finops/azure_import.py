@@ -27,6 +27,14 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--export_version",
+    type=str,
+    help="The export version - Amortized or Actual",
+    choices=["actual", "amortized"],
+    default="amortized",
+)
+
+parser.add_argument(
     "--partitioned",
     action="store_true",
     help="Whether the billing export is partitioned",
@@ -51,6 +59,8 @@ print(args)
 client = AzureBlobStorageClient(
     storage_container=args.storage_container,
     storage_directory=args.storage_directory,
+    export_version=args.export_version,
+    partitioned=args.partitioned,
 )
 
 if args.partitioned:

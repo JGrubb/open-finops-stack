@@ -1,18 +1,17 @@
 import os
 from azure.storage.blob import BlobServiceClient
 from azure.identity import DefaultAzureCredential
-from clickhouse.schema_handler import AwsSchemaHandler
+from clickhouse.schema_handler import AzureSchemaHandler
 
 
 class AzureSchemaSetup:
-    def __init__(self):
-        self.schema_handler = AwsSchemaHandler()
+    def __init__(self, version: str):
+        self.schema_handler = AzureSchemaHandler()
+        self.version = version
 
     def setup(self):
-        self.schema_handler.create_table("azure_actual_state")
-        self.schema_handler.create_table("azure_amortized_state")
-        self.schema_handler.create_table("azure_actual_data")
-        self.schema_handler.create_table("azure_amortized_data")
+        self.schema_handler.create_state_table(self.version)
+        self.schema_handler.create_data_table(self.version)
 
 
 class AzureBlobStorageClient:
