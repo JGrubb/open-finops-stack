@@ -116,8 +116,8 @@ class AWSSchemaSetup:
         self.schema_handler = AwsSchemaHandler(cur_version)
 
     def setup(self):
-        self.schema_handler.create_aws_state_table()
-        self.schema_handler.create_aws_data_table()
+        self.schema_handler.create_state_table()
+        self.schema_handler.create_data_table()
 
 
 if __name__ == "__main__":

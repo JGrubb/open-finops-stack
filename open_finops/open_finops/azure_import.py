@@ -1,7 +1,8 @@
 import argparse
 import datetime
 
-from azure_ofs import AzureBlobStorageClient
+from open_finops import do_we_load_it, update_state, load_file
+from azure_ofs import AzureSchemaSetup, AzureHandler, AzureSchemaHandler
 
 # Create the parser
 parser = argparse.ArgumentParser(description="Azure FinOps")
@@ -54,15 +55,33 @@ parser.add_argument(
 
 args = parser.parse_args()
 
-print(args)
+AzureSchemaSetup(args.export_version).setup()
 
-client = AzureBlobStorageClient(
-    storage_container=args.storage_container,
-    storage_directory=args.storage_directory,
-    export_version=args.export_version,
+handler = AzureHandler(
+    args.storage_container,
+    args.storage_directory,
+    args.export_name,
     partitioned=args.partitioned,
 )
 
-if args.partitioned:
-    objects = client.list_objects(prefix=f"{args.storage_directory}/{args.export_name}")
-    print(objects)
+manifests = handler.main()
+
+for manifest in manifests:
+    if not do_we_load_it(
+        manifest,
+        "azure",
+        args.export_version,
+        start_date=args.start_date,
+        end_date=args.end_date,
+    ):
+        continue
+    local_files = handler.download_datafiles(manifest)
+    schema_handler = AzureSchemaHandler(args.export_version)
+    schema_handler.align_schemas(
+        manifest["columns"]
+    )  ##TODO - figure out the columns situation
+    schema_handler.drop_partition(manifest["billing_period"])
+    for local_file in local_files:
+        load_file("azure", args.export_version, local_file, manifest["columns"])
+        update_state(manifest, "azure", args.export_version)
+    print(f"Loaded {manifest['billing_period']}")

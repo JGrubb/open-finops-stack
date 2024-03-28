@@ -2,9 +2,9 @@ import argparse
 import json
 import datetime
 
-from aws import Aws_v1, Aws_v2, AWSSchemaSetup
-from aws.manifest_normalizer import AWSManifestNormalizer
-from open_finops import aws_bootstrap, do_we_load_it, update_state
+from aws_ofs import Aws_v1, Aws_v2, AWSSchemaSetup
+from aws_ofs.manifest_normalizer import AWSManifestNormalizer
+from open_finops import do_we_load_it, update_state
 from clickhouse.schema_handler import AwsSchemaHandler
 from clickhouse import load_file
 
@@ -14,18 +14,21 @@ parser = argparse.ArgumentParser(description="AWS FinOps")
 # Add the arguments
 parser.add_argument(
     "--bucket",
+    "-b",
     type=str,
     help="The S3 bucket name",
     required=True,
 )
 parser.add_argument(
     "--prefix",
+    "-p",
     type=str,
     help="The S3 bucket prefix",
     required=True,
 )
 parser.add_argument(
     "--export_name",
+    "-e",
     type=str,
     help="The export name",
     required=True,
@@ -33,6 +36,7 @@ parser.add_argument(
 
 parser.add_argument(
     "--cur_version",
+    "-v",
     type=str,
     help="The version to import",
     choices=["v1", "v2"],
@@ -91,7 +95,7 @@ for path in aws.manifest_paths:
         schema_handler.align_schemas(manifest["columns"])
         schema_handler.drop_partition(manifest["billing_period"])
         for file in billing_file_paths:
-            load_file(args.cur_version, file, manifest["columns"])
+            load_file("aws", args.cur_version, file, manifest["columns"])
         update_state(manifest, "aws", args.cur_version)
         print(f"Loaded {manifest['billing_period']}")
 

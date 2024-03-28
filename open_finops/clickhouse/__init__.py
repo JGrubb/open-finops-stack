@@ -54,7 +54,7 @@ def do_we_load_it(manifest: dict, **kwargs):
     return True
 
 
-def load_file(version, file_path, columns):
+def load_file(vendor, version, file_path, columns):
     """
     Loads a file into ClickHouse database.
 
@@ -79,7 +79,7 @@ def load_file(version, file_path, columns):
             }
             insert_file(
                 client=client,
-                table=f"aws_data_{version}",
+                table=f"{vendor}_data_{version}",
                 file_path=file_path,
                 column_names=[column["name"] for column in columns],
                 settings=settings,
@@ -91,7 +91,7 @@ def load_file(version, file_path, columns):
             }
             insert_file(
                 client=client,
-                table=f"aws_data_{version}",
+                table=f"{vendor}_data_{version}",
                 file_path=file_path,
                 fmt="Parquet",
                 settings=settings,

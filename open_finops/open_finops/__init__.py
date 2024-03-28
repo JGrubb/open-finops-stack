@@ -15,11 +15,6 @@ class ClickhouseAwsSetup:
         return None
 
 
-def aws_bootstrap(cur_version: str):
-    setup = ClickhouseAwsSetup(cur_version)
-    setup.main()
-
-
 def do_we_load_it(manifest: dict, vendor: str, version: str, **kwargs):
     """
     Determine if we should load the given manifest.  Three things to check in this order:
