@@ -54,14 +54,13 @@ def do_we_load_it(manifest: dict, **kwargs):
     return True
 
 
-def load_file(version, file_path, columns):
+def load_file(manifest: dict, file_path: str):
     """
     Loads a file into ClickHouse database.
 
     Args:
-        version (str): The version of the data.
+        manifestm (dict): The version of the data.
         file_path (str): The path to the file to be loaded.
-        columns (list): A list of dictionaries representing the columns of the table.
 
     Returns:
         None
@@ -71,30 +70,31 @@ def load_file(version, file_path, columns):
 
     print(f"Loading {file_path}")
     try:
-        if file_path.endswith(".csv.gz"):
+        if file_path.endswith((".csv.gz", ".csv")):
             settings = {
-                "input_format_csv_skip_first_lines": 1,
                 "date_time_input_format": "best_effort",
                 "session_timezone": "UTC",
             }
             insert_file(
                 client=client,
-                table=f"aws_data_{version}",
+                table=f"{manifest['vendor']}_data_{manifest['version']}",
                 file_path=file_path,
-                column_names=[column["name"] for column in columns],
+                fmt="CSVWithNames",
                 settings=settings,
             )
         elif file_path.endswith(".parquet"):
             settings = {
                 "date_time_input_format": "best_effort",
+                "input_format_parquet_allow_missing_columns": "true",
                 "session_timezone": "UTC",
             }
             insert_file(
                 client=client,
-                table=f"aws_data_{version}",
+                table=f"{manifest['vendor']}_data_{manifest['version']}",
                 file_path=file_path,
                 fmt="Parquet",
                 settings=settings,
             )
     except Exception as e:
         print(e)  # not this is not pretty and should be improved
+        raise
