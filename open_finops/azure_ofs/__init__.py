@@ -1,6 +1,10 @@
 import os
 import shutil
+
 import dateutil.parser
+from tqdm import tqdm
+import duckdb
+import pytz
 
 from azure.storage.blob import BlobServiceClient
 from azure.identity import DefaultAzureCredential
@@ -50,9 +54,25 @@ class AzureBlobStorageClient:
 
     def download_object(self, blob_name, destination_path):
         blob_client = self.container_client.get_blob_client(blob_name)
-        with open(destination_path, "wb") as file:
-            blob_data = blob_client.download_blob()
+        filesize = blob_client.get_blob_properties().size
+        os.makedirs(os.path.dirname(destination_path), exist_ok=True)
+        with open(destination_path, "ab") as file, tqdm(
+            total=filesize,
+            unit="B",
+            unit_scale=True,
+            desc=destination_path.split("/")[-1],
+            colour="green",
+        ) as t:
+            bytes_read = 0
+
+            def update_progress(bytes_amount, *args):
+                nonlocal bytes_read
+                t.update(bytes_amount - bytes_read)
+                bytes_read = bytes_amount
+
+            blob_data = blob_client.download_blob(progress_hook=update_progress)
             file.write(blob_data.readall())
+            t.close()
 
     def get_most_recent_object(self, prefix=None):
         blob_list = self.container_client.list_blobs(name_starts_with=prefix)
