@@ -83,3 +83,17 @@ class AzureSchemaHandler(SchemaHandler):
         self.vendor = "azure"
         self.partition_column = "BillingPeriodStartDate"
         self.ordering_column = "Date"
+
+    def create_data_table(self):
+        self.client.command(
+            f"""
+            CREATE TABLE IF NOT EXISTS {self.vendor}_data_{self.version}
+            (
+                {self.partition_column} Date,
+                {self.ordering_column} Date
+            )
+            ENGINE = MergeTree
+            ORDER BY {self.ordering_column}
+            PARTITION BY toYYYYMM({self.partition_column})
+            """
+        )
