@@ -82,7 +82,12 @@ class AzureBlobStorageClient:
 
 class AzureHandler:
     def __init__(
-        self, storage_container, storage_directory, export_name, partitioned=False
+        self,
+        storage_container,
+        storage_directory,
+        export_name,
+        export_version,
+        partitioned=False,
     ):
         self.storage_client = AzureBlobStorageClient(
             storage_container, storage_directory
@@ -106,6 +111,8 @@ class AzureHandler:
         month_dirs = sorted(
             list(set([obj.split("/")[2] for obj in objects])), reverse=True
         )
+        for month in month_dirs:
+            print(f"Found month: {month}")
         return month_dirs
 
     def get_most_recent_for_month(self, month):
@@ -117,6 +124,7 @@ class AzureHandler:
 
     def build_manifests(self):
         for file_path in self.file_paths:
+            # print(f"Building manifest for {file_path}. Partitioned: {self.partitioned}")
             if self.partitioned:
                 directory = file_path.rsplit("/", 1)[0]
                 data_files = self.storage_client.list_objects(
@@ -125,18 +133,24 @@ class AzureHandler:
                 manifest = {
                     "billing_period": dateutil.parser.parse(
                         file_path.split("/")[2].split("-")[0]
-                    ).replace(day=1),
+                    ).replace(day=1, tzinfo=pytz.UTC),
                     "execution_id": file_path.split("/")[-2],
                     "data_files": data_files,
+                    "columns": self.columns,
+                    "vendor": "azure",
+                    "version": self.version,
                 }
 
             else:
                 manifest = {
                     "billing_period": dateutil.parser.parse(
                         file_path.split("/")[-2].split("-")[0]
-                    ).replace(day=1),
+                    ).replace(day=1, tzinfo=pytz.UTC),
                     "execution_id": file_path.split("_")[1].split(".")[0],
                     "data_files": [file_path],
+                    "columns": self.columns,
+                    "vendor": "azure",
+                    "version": self.version,
                 }
             self.manifests.append(manifest)
 
