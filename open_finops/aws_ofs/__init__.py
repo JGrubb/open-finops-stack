@@ -2,6 +2,7 @@ import os
 import re
 import shutil
 import boto3
+from tqdm import tqdm
 
 from clickhouse.schema_handler import AwsSchemaHandler
 
@@ -82,10 +83,17 @@ class S3Handler:
             )
             print(f"Downloading {f}")
             try:
-                self.bucket_resource.download_file(
-                    f,
-                    f"{tmp_dir}/{f}",
-                )
+                filesize = self.bucket_resource.Object(f).content_length
+                with tqdm(
+                    total=filesize,
+                    unit="B",
+                    unit_scale=True,
+                    desc=f.split("/")[-1],
+                    colour="green",
+                ) as t:
+                    self.bucket_resource.download_file(
+                        f, f"{tmp_dir}/{f}", Callback=t.update
+                    )
                 billing_file_paths.append(f"{tmp_dir}/{f}")
             except Exception as e:
                 print(f"Error downloading {f}: {e}")
