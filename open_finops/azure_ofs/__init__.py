@@ -164,8 +164,36 @@ class AzureHandler:
 
     def download_datafiles(self, manifest):
         local_files = []
+        # schema_string = (
+        #     "("
+        #     + ",".join(
+        #         [
+        #             column["name"] + " " + column["type"]
+        #             for column in manifest["columns"]
+        #         ]
+        #     )
+        #     + ")"
+        # )
+        con = duckdb.connect()
         for data_file in manifest["data_files"]:
-            destination_path = f"storage/tmp/azure/{data_file.split('/')[-1]}"
+            destination_path = f"storage/tmp/azure/{data_file}"
+            print(f"Downloading to {destination_path}")
             self.storage_client.download_object(data_file, destination_path)
             local_files.append(destination_path)
-        return local_files
+            print(f"Downloaded {data_file}")
+        dirname = os.path.dirname(local_files[0])
+        con.sql(
+            f"""CREATE TABLE azure_tmp AS SELECT * FROM read_csv('{dirname}/*.csv', 
+                header = true, 
+                dateformat = '%m/%d/%Y'
+            )"""
+        )
+        columns = [
+            {"name": result[0], "type": result[1]}
+            for result in con.sql("DESCRIBE azure_tmp").fetchall()
+        ]
+        con.sql(
+            f"COPY (SELECT * FROM azure_tmp) TO 'storage/tmp/azure/azure-tmp.parquet' (FORMAT 'parquet')"
+        )
+        con.close()
+        return ["storage/tmp/azure/azure-tmp.parquet"], columns
