@@ -1,8 +1,9 @@
 import argparse
 import datetime
 
-from open_finops import do_we_load_it, update_state, load_file
+from open_finops import do_we_load_it, update_state
 from azure_ofs import AzureSchemaSetup, AzureHandler, AzureSchemaHandler
+from clickhouse import load_file
 
 # Create the parser
 parser = argparse.ArgumentParser(description="Azure FinOps")
@@ -53,6 +54,12 @@ parser.add_argument(
     help="The end date for the import in the format YYYY-MM",
 )
 
+parser.add_argument(
+    "--mock",
+    action="store_true",
+    help="Loads local data instead of the whole pipeline",
+)
+
 args = parser.parse_args()
 
 AzureSchemaSetup(args.export_version).setup()
@@ -61,27 +68,25 @@ handler = AzureHandler(
     args.storage_container,
     args.storage_directory,
     args.export_name,
+    args.export_version,
     partitioned=args.partitioned,
 )
 
 manifests = handler.main()
 
 for manifest in manifests:
-    if not do_we_load_it(
+    if not args.mock and not do_we_load_it(
         manifest,
-        "azure",
-        args.export_version,
         start_date=args.start_date,
         end_date=args.end_date,
     ):
         continue
-    local_files = handler.download_datafiles(manifest)
+    local_files, columns = handler.download_datafiles(manifest)
+    manifest["columns"] = columns
     schema_handler = AzureSchemaHandler(args.export_version)
-    schema_handler.align_schemas(
-        manifest["columns"]
-    )  ##TODO - figure out the columns situation
+    schema_handler.align_schemas(manifest["columns"])
     schema_handler.drop_partition(manifest["billing_period"])
     for local_file in local_files:
-        load_file("azure", args.export_version, local_file, manifest["columns"])
-        update_state(manifest, "azure", args.export_version)
+        load_file(manifest, local_file)
+    update_state(manifest)
     print(f"Loaded {manifest['billing_period']}")
