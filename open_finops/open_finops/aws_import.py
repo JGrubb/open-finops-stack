@@ -84,8 +84,6 @@ for path in aws.manifest_paths:
         manifest = AWSManifestNormalizer(manifest, args.cur_version, path).normalize()
         if not do_we_load_it(
             manifest,
-            "aws",
-            args.cur_version,
             start_date=args.start_date,
             end_date=args.end_date,
         ):
@@ -95,8 +93,8 @@ for path in aws.manifest_paths:
         schema_handler.align_schemas(manifest["columns"])
         schema_handler.drop_partition(manifest["billing_period"])
         for file in billing_file_paths:
-            load_file("aws", args.cur_version, file, manifest["columns"])
-        update_state(manifest, "aws", args.cur_version)
+            load_file(manifest, file)
+        update_state(manifest)
         print(f"Loaded {manifest['billing_period']}")
 
 print(aws.manifest_paths)
