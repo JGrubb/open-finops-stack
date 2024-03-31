@@ -49,6 +49,8 @@ class AWSManifestNormalizer:
             "execution_id": self.manifest["assemblyId"],
             "data_files": self.manifest["reportKeys"],
             "columns": columns,
+            "vendor": "aws",
+            "version": "v1",
         }
 
         return manifest
@@ -83,6 +85,8 @@ class AWSManifestNormalizer:
             "execution_id": self.manifest["executionId"],
             "data_files": data_files,
             "columns": columns,
+            "vendor": "aws",
+            "version": "v2",
         }
 
         return manifest
