@@ -1,21 +1,9 @@
+from dataclasses import dataclass
 import pytz
-from clickhouse.schema_handler import AwsSchemaHandler
 from clickhouse.clickhouse_client import create_client
 
 
-class ClickhouseAwsSetup:
-
-    def __init__(self, cur_version: str):
-        self.cur_version = cur_version
-        self.schema_handler = AwsSchemaHandler(cur_version)
-
-    def main(self):
-        self.schema_handler.create_aws_data_table()
-        self.schema_handler.create_aws_state_table(self.cur_version)
-        return None
-
-
-def do_we_load_it(manifest: dict, vendor: str, version: str, **kwargs):
+def do_we_load_it(manifest: dict, **kwargs):
     """
     Determine if we should load the given manifest.  Three things to check in this order:
     - The ingest_start_date variable is set and the manifest's start date is on or after it.
@@ -53,7 +41,7 @@ def do_we_load_it(manifest: dict, vendor: str, version: str, **kwargs):
 
     result = client.command(
         f"""
-        SELECT 1 FROM {vendor}_state_{version} 
+        SELECT 1 FROM {manifest['vendor']}_state_{manifest['version']} 
           WHERE execution_id = '{manifest['execution_id']}' 
           AND billing_month = toDateTime('{manifest['billing_period'].strftime("%Y-%m-%d %H:%M:%S")}')"""
     )
@@ -62,10 +50,13 @@ def do_we_load_it(manifest: dict, vendor: str, version: str, **kwargs):
             f"Skipping manifest {manifest['execution_id']} for {manifest['billing_period']} - already loaded"
         )
         return False
+    print(
+        f"{manifest['vendor']} manifest {manifest['execution_id']} for {manifest['billing_period']} has not been loaded"
+    )
     return True
 
 
-def update_state(manifest, vendor, version):
+def update_state(manifest):
     """
     Update the state in the AWS table to reflect that a given manifest's assembly_id has been loaded.
 
@@ -79,7 +70,7 @@ def update_state(manifest, vendor, version):
     try:
         client.query(
             f"""
-            INSERT INTO {vendor}_state_{version}
+            INSERT INTO {manifest['vendor']}_state_{manifest['version']}
             VALUES (
                 toDateTime('{manifest['billing_period'].strftime("%Y-%m-%d %H:%M:%S")}'),
                 '{manifest['execution_id']}',
