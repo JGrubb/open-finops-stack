@@ -1,3 +1,4 @@
+import sys
 import argparse
 import json
 import datetime
@@ -17,21 +18,18 @@ parser.add_argument(
     "-b",
     type=str,
     help="The S3 bucket name",
-    required=True,
 )
 parser.add_argument(
     "--prefix",
     "-p",
     type=str,
     help="The S3 bucket prefix",
-    required=True,
 )
 parser.add_argument(
     "--export_name",
     "-e",
     type=str,
     help="The export name",
-    required=True,
 )
 
 parser.add_argument(
@@ -67,6 +65,10 @@ parser.add_argument(
 
 # Parse the arguments
 args = parser.parse_args()
+if args.reset:
+    AwsSchemaHandler(args.cur_version).reset()
+    sys.exit()
+
 
 # set up the tables if this is a fresh install
 AWSSchemaSetup(args.cur_version).setup()

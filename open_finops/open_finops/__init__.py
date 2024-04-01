@@ -96,13 +96,32 @@ def update_state(manifest: ManifestObject):
     try:
         client.query(
             f"""
-            INSERT INTO {manifest['vendor']}_state_{manifest['version']}
+            INSERT INTO {manifest.vendor}_state_{manifest.version}
             VALUES (
-                toDateTime('{manifest['billing_period'].strftime("%Y-%m-%d %H:%M:%S")}'),
-                '{manifest['execution_id']}',
+                toDateTime('{manifest.billing_period.strftime("%Y-%m-%d %H:%M:%S")}'),
+                '{manifest.execution_id}',
                 now()
             )
         """
         )
     except Exception as e:
         print(e)
+
+
+def extract_schema(file_path):
+    """
+    Extract the schema from a file.
+
+    Args:
+        file_path (str): The path to the file.
+
+    Returns:
+        list: The schema of the file.
+    """
+    with duckdb.connect() as con:
+        columns = [
+            {"name": result[0], "type": result[1]}
+            for result in con.sql(f"DESCRIBE SELECT * from '{file_path}'").fetchall()
+        ]
+        con.close()
+    return columns
