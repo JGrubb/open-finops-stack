@@ -73,13 +73,14 @@ def load_file(manifest: dict, file_path: str):
         if file_path.endswith((".csv.gz", ".csv")):
             settings = {
                 "date_time_input_format": "best_effort",
+                "input_format_csv_skip_first_lines": 1,
                 "session_timezone": "UTC",
             }
             insert_file(
                 client=client,
-                table=f"{manifest['vendor']}_data_{manifest['version']}",
+                table=f"{manifest.vendor}_data_{manifest.version}",
                 file_path=file_path,
-                fmt="CSVWithNames",
+                column_names=[column["name"] for column in manifest.columns],
                 settings=settings,
             )
         elif file_path.endswith(".parquet"):
@@ -90,7 +91,7 @@ def load_file(manifest: dict, file_path: str):
             }
             insert_file(
                 client=client,
-                table=f"{manifest['vendor']}_data_{manifest['version']}",
+                table=f"{manifest.vendor}_data_{manifest.version}",
                 file_path=file_path,
                 fmt="Parquet",
                 settings=settings,
