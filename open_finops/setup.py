@@ -11,5 +11,6 @@ setup(
         "dateparser",
         "azure-storage-blob",
         "azure-identity",
+        "duckdb",
     ],
 )

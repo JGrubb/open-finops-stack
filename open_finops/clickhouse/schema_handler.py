@@ -14,8 +14,8 @@ class SchemaHandler:
             f"""
             CREATE TABLE IF NOT EXISTS {self.vendor}_data_{self.version}
             (
-                {self.partition_column} DateTime,
-                {self.ordering_column} DateTime
+                {self.partition_column} {self.partitioning_datatype},
+                {self.ordering_column} {self.ordering_datatype},
             )
             ENGINE = MergeTree
             ORDER BY {self.ordering_column}
@@ -60,6 +60,18 @@ class SchemaHandler:
             """
         )
 
+    def reset(self):
+        self.client.command(
+            f"""
+            DROP TABLE IF EXISTS {self.vendor}_data_{self.version}
+            """
+        )
+        self.client.command(
+            f"""
+            DROP TABLE IF EXISTS {self.vendor}_state_{self.version}
+            """
+        )
+
 
 class AwsSchemaHandler(SchemaHandler):
 
@@ -69,10 +81,14 @@ class AwsSchemaHandler(SchemaHandler):
         self.vendor = "aws"
         if cur_version == "v1":
             self.partition_column = "bill_BillingPeriodStartDate"
+            self.partitioning_datatype = "DateTime"
             self.ordering_column = "lineItem_UsageStartDate"
+            self.ordering_datatype = "DateTime"
         else:  # cur_version == "v2"
             self.partition_column = "bill_billing_period_start_date"
+            self.partitioning_datatype = "DateTime"
             self.ordering_column = "line_item_usage_start_date"
+            self.ordering_datatype = "DateTime"
 
 
 class AzureSchemaHandler(SchemaHandler):
@@ -82,18 +98,6 @@ class AzureSchemaHandler(SchemaHandler):
         self.version = export_version
         self.vendor = "azure"
         self.partition_column = "BillingPeriodStartDate"
+        self.partitioning_datatype = "Date"
         self.ordering_column = "Date"
-
-    def create_data_table(self):
-        self.client.command(
-            f"""
-            CREATE TABLE IF NOT EXISTS {self.vendor}_data_{self.version}
-            (
-                {self.partition_column} Date,
-                {self.ordering_column} Date
-            )
-            ENGINE = MergeTree
-            ORDER BY {self.ordering_column}
-            PARTITION BY toYYYYMM({self.partition_column})
-            """
-        )
+        self.ordering_datatype = "Date"

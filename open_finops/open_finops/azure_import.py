@@ -1,7 +1,7 @@
 import argparse
 import datetime
 
-from open_finops import do_we_load_it, update_state
+from open_finops import do_we_load_it, update_state, extract_schema
 from azure_ofs import AzureSchemaSetup, AzureHandler, AzureSchemaHandler
 from clickhouse import load_file
 
@@ -55,12 +55,21 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--reset",
+    action="store_true",
+    help="Drops all tables and starts over",
+)
+
+parser.add_argument(
     "--mock",
     action="store_true",
     help="Loads local data instead of the whole pipeline",
 )
 
 args = parser.parse_args()
+
+if args.reset:
+    AzureSchemaSetup(args.export_version).reset()
 
 AzureSchemaSetup(args.export_version).setup()
 
@@ -81,11 +90,11 @@ for manifest in manifests:
         end_date=args.end_date,
     ):
         continue
-    local_files, columns = handler.download_datafiles(manifest)
-    manifest["columns"] = columns
+    local_files = handler.download_datafiles(manifest)
+    manifest.columns = extract_schema(local_files[0])
     schema_handler = AzureSchemaHandler(args.export_version)
-    schema_handler.align_schemas(manifest["columns"])
-    schema_handler.drop_partition(manifest["billing_period"])
+    schema_handler.align_schemas(manifest.columns)
+    schema_handler.drop_partition(manifest.billing_period)
     for local_file in local_files:
         load_file(manifest, local_file)
     update_state(manifest)

@@ -1,13 +1,15 @@
 import os
 import re
 import shutil
+
 import boto3
 from tqdm import tqdm
+import duckdb
 
 from clickhouse.schema_handler import AwsSchemaHandler
 
 
-class S3Handler:
+class AwsHandler:
     def __init__(self, bucket, prefix, export_name):
         self.bucket_name = bucket
         self.bucket_resource = None
@@ -17,12 +19,13 @@ class S3Handler:
         self.manifest_paths = []
         self.aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID")
         self.aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY")
-        self.storage_dir = os.getenv("OFS_STORAGE_DIR", "storage")
+        self.local_storage = "/".join([os.getenv("OFS_STORAGE_DIR", "storage"), "aws"])
+        self.tmp_dir = f"{self.local_storage}/tmp"
         self.billing_path_property = None
 
     def preclean(self):
-        if os.path.exists(self.storage_dir):
-            shutil.rmtree(self.storage_dir)
+        if os.path.exists(self.local_storage):
+            shutil.rmtree(self.local_storage)
 
     def return_s3_bucket(self):
         resource = boto3.resource(
@@ -52,7 +55,7 @@ class S3Handler:
           None
         """
         for manifest in self.manifest_s3_objects:
-            storage_path = f"{self.storage_dir}/{manifest.key}"
+            storage_path = f"{self.local_storage}/{manifest.key}"
             os.makedirs(
                 os.path.dirname(storage_path),
                 exist_ok=True,
@@ -73,10 +76,10 @@ class S3Handler:
             None
         """
         billing_file_paths = []
-        tmp_dir = f"{self.storage_dir}/tmp"
+        tmp_dir = self.tmp_dir
         if os.path.exists(tmp_dir):
             shutil.rmtree(tmp_dir)
-        for f in manifest["data_files"]:
+        for f in manifest.data_files:
             os.makedirs(
                 os.path.dirname(f"{tmp_dir}/{f}"),
                 exist_ok=True,
@@ -107,13 +110,13 @@ class S3Handler:
         return self.manifest_paths
 
 
-class Aws_v1(S3Handler):
+class Aws_v1(AwsHandler):
     def __init__(self, bucket, prefix, export_name):
         super().__init__(bucket, prefix, export_name)
         self.pattern = rf"{self.prefix}/{self.export_name}/\d{{8}}-\d{{8}}/{self.export_name}-Manifest\.json"
 
 
-class Aws_v2(S3Handler):
+class Aws_v2(AwsHandler):
     def __init__(self, bucket, prefix, export_name):
         super().__init__(bucket, prefix, export_name)
         self.pattern = rf"{self.prefix}/{self.export_name}/metadata/BILLING_PERIOD=\d{{4}}-\d{{2}}/{self.export_name}-Manifest\.json"
@@ -126,8 +129,3 @@ class AWSSchemaSetup:
     def setup(self):
         self.schema_handler.create_state_table()
         self.schema_handler.create_data_table()
-
-
-if __name__ == "__main__":
-    aws = Aws_v2("reports.commerceguys.com", "billing", "aws-cost-usage-v2")
-    aws.main()
