@@ -65,6 +65,10 @@ class AzureBlobStorageClient:
         ) as t:
             bytes_read = 0
 
+            # the progress_hook calls with 2 args - the bytes to far and the total
+            # bytes.  t.update wants the bytes read in that iteration, so we have to
+            # make that happen by keeping track of what the total was as of the previous
+            # iteration.
             def update_progress(bytes_amount, *args):
                 nonlocal bytes_read
                 t.update(bytes_amount - bytes_read)
