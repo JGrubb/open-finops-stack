@@ -88,13 +88,11 @@ for path in aws.manifest_paths:
             end_date=args.end_date,
         ):
             continue
-        billing_file_paths = aws.download_billing_files(manifest)
+        local_files = aws.download_billing_files(manifest)
         schema_handler = AwsSchemaHandler(args.cur_version)
-        schema_handler.align_schemas(manifest["columns"])
-        schema_handler.drop_partition(manifest["billing_period"])
-        for file in billing_file_paths:
-            load_file(manifest, file)
+        schema_handler.align_schemas(manifest.columns)
+        schema_handler.drop_partition(manifest.billing_period)
+        for local_file in local_files:
+            load_file(manifest, local_file)
         update_state(manifest)
-        print(f"Loaded {manifest['billing_period']}")
-
-print(aws.manifest_paths)
+        print(f"Loaded {manifest.billing_period}")

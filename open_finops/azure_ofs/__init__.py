@@ -6,6 +6,7 @@ from tqdm import tqdm
 import duckdb
 import pytz
 
+from open_finops import ManifestObject
 from azure.storage.blob import BlobServiceClient
 from azure.identity import DefaultAzureCredential
 from clickhouse.schema_handler import AzureSchemaHandler
@@ -186,34 +187,40 @@ class AzureHandler:
 
     def build_manifests(self):
         for file_path in self.file_paths:
-            # print(f"Building manifest for {file_path}. Partitioned: {self.partitioned}")
+            # Azure doesn't provide a useful manifest object in the nightly folder,
+            # so we basically have to generate the metadata we need from the path
+            # of the file(s) itself.  Partitioned and non-partitioned file paths
+            # have slightly different structures, hence the two paths here.
             if self.partitioned:
+                # we only feed this
                 directory = file_path.rsplit("/", 1)[0]
                 data_files = self.storage_client.list_objects(
                     prefix=directory, suffix=(".csv", ".csv.gz")
                 )
-                manifest = {
-                    "billing_period": dateutil.parser.parse(
-                        file_path.split("/")[2].split("-")[0]
-                    ).replace(day=1, tzinfo=pytz.UTC),
-                    "execution_id": file_path.split("/")[-2],
-                    "data_files": data_files,
-                    "columns": self.columns,
-                    "vendor": "azure",
-                    "version": self.version,
-                }
+                billing_period = dateutil.parser.parse(
+                    file_path.split("/")[2].split("-")[0]
+                ).replace(day=1, tzinfo=pytz.UTC)
+                manifest = ManifestObject(
+                    billing_period=billing_period,
+                    execution_id=file_path.split("/")[-2],
+                    data_files=data_files,
+                    columns=[],
+                    vendor="azure",
+                    version=self.version,
+                )
 
             else:
-                manifest = {
-                    "billing_period": dateutil.parser.parse(
-                        file_path.split("/")[-2].split("-")[0]
-                    ).replace(day=1, tzinfo=pytz.UTC),
-                    "execution_id": file_path.split("_")[1].split(".")[0],
-                    "data_files": [file_path],
-                    "columns": self.columns,
-                    "vendor": "azure",
-                    "version": self.version,
-                }
+                billing_period = dateutil.parser.parse(
+                    file_path.split("/")[2].split("-")[0]
+                ).replace(day=1, tzinfo=pytz.UTC)
+                manifest = ManifestObject(
+                    billing_period=billing_period,
+                    execution_id=file_path.split("_")[1].split(".")[0],
+                    data_files=[file_path],
+                    columns=[],
+                    vendor="azure",
+                    version=self.version,
+                )
             self.manifests.append(manifest)
 
     def main(self):

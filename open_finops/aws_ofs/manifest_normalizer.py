@@ -2,6 +2,7 @@ import re
 import pytz
 
 import dateutil.parser as date_parser
+from open_finops import ManifestObject
 
 
 class AWSManifestNormalizer:
@@ -10,18 +11,15 @@ class AWSManifestNormalizer:
         self.version = version
         self.path = path
 
-        self.normalizer = self.picker(self.version)
+    def normalize(self) -> ManifestObject:
+        if self.version not in ["v1", "v2"]:
+            raise ValueError(f"Invalid CUR version: {self.version}")
+        if self.version == "v1":
+            return self.normalize_v1()
+        elif self.version == "v2":
+            return self.normalize_v2()
 
-    def picker(self, version):
-        return {
-            "v1": self.normalize_v1,
-            "v2": self.normalize_v2,
-        }[version]
-
-    def normalize(self):
-        return self.normalizer()
-
-    def normalize_v1(self):
+    def normalize_v1(self) -> ManifestObject:
         type_mapping = {
             "String": "String",
             "Interval": "String",
@@ -41,21 +39,21 @@ class AWSManifestNormalizer:
             }
             for column in self.manifest["columns"]
         ]
-
-        manifest = {
-            "billing_period": date_parser.parse(
-                self.manifest["billingPeriod"]["start"]
-            ).replace(day=1),
-            "execution_id": self.manifest["assemblyId"],
-            "data_files": self.manifest["reportKeys"],
-            "columns": columns,
-            "vendor": "aws",
-            "version": "v1",
-        }
+        billing_period = date_parser.parse(
+            self.manifest["billingPeriod"]["start"]
+        ).replace(day=1)
+        manifest = ManifestObject(
+            billing_period=billing_period,
+            execution_id=self.manifest["assemblyId"],
+            data_files=self.manifest["reportKeys"],
+            columns=columns,
+            vendor="aws",
+            version="v1",
+        )
 
         return manifest
 
-    def normalize_v2(self):
+    def normalize_v2(self) -> ManifestObject:
         v2_pattern = r"BILLING_PERIOD=(\d{4}-\d{2})"
 
         data_files = ["/".join(f.split("/")[3:]) for f in self.manifest["dataFiles"]]
@@ -77,16 +75,16 @@ class AWSManifestNormalizer:
             }
             for column in self.manifest["columns"]
         ]
-
-        manifest = {
-            "billing_period": date_parser.parse(
-                re.search(v2_pattern, self.path).group(1)
-            ).replace(day=1, tzinfo=pytz.UTC),
-            "execution_id": self.manifest["executionId"],
-            "data_files": data_files,
-            "columns": columns,
-            "vendor": "aws",
-            "version": "v2",
-        }
+        billing_period = date_parser.parse(
+            re.search(v2_pattern, self.path).group(1)
+        ).replace(day=1, tzinfo=pytz.UTC)
+        manifest = ManifestObject(
+            billing_period=billing_period,
+            execution_id=self.manifest["executionId"],
+            data_files=data_files,
+            columns=columns,
+            vendor="aws",
+            version="v2",
+        )
 
         return manifest
