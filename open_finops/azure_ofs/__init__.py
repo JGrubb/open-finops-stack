@@ -98,73 +98,19 @@ class AzureHandler:
             storage_container, storage_directory
         )
         self.storage_directory = storage_directory
+        self.local_storage = "/".join(
+            [os.getenv("OFS_STORAGE_DIR", "storage"), "azure"]
+        )
+        self.tmp_dir = f"{self.local_storage}/tmp"
         self.export_name = export_name
         self.partitioned = partitioned
         self.version = export_version
         self.file_paths = []
         self.manifests = []
-        self.columns = [
-            {"name": "InvoiceSectionName", "type": "VARCHAR"},
-            {"name": "AccountName", "type": "VARCHAR"},
-            {"name": "AccountOwnerId", "type": "VARCHAR"},
-            {"name": "SubscriptionId", "type": "VARCHAR"},
-            {"name": "SubscriptionName", "type": "VARCHAR"},
-            {"name": "ResourceGroup", "type": "VARCHAR"},
-            {"name": "ResourceLocation", "type": "VARCHAR"},
-            {"name": "Date", "type": "DATE"},
-            {"name": "ProductName", "type": "VARCHAR"},
-            {"name": "MeterCategory", "type": "VARCHAR"},
-            {"name": "MeterSubCategory", "type": "VARCHAR"},
-            {"name": "MeterId", "type": "VARCHAR"},
-            {"name": "MeterName", "type": "VARCHAR"},
-            {"name": "MeterRegion", "type": "VARCHAR"},
-            {"name": "UnitOfMeasure", "type": "VARCHAR"},
-            {"name": "Quantity", "type": "DOUBLE"},
-            {"name": "EffectivePrice", "type": "DOUBLE"},
-            {"name": "CostInBillingCurrency", "type": "DOUBLE"},
-            {"name": "CostCenter", "type": "VARCHAR"},
-            {"name": "ConsumedService", "type": "VARCHAR"},
-            {"name": "ResourceId", "type": "VARCHAR"},
-            {"name": "Tags", "type": "VARCHAR"},
-            {"name": "OfferId", "type": "VARCHAR"},
-            {"name": "AdditionalInfo", "type": "VARCHAR"},
-            {"name": "ServiceInfo1", "type": "VARCHAR"},
-            {"name": "ServiceInfo2", "type": "VARCHAR"},
-            {"name": "ResourceName", "type": "VARCHAR"},
-            {"name": "ReservationId", "type": "VARCHAR"},
-            {"name": "ReservationName", "type": "VARCHAR"},
-            {"name": "UnitPrice", "type": "DOUBLE"},
-            {"name": "ProductOrderId", "type": "VARCHAR"},
-            {"name": "ProductOrderName", "type": "VARCHAR"},
-            {"name": "Term", "type": "VARCHAR"},
-            {"name": "PublisherType", "type": "VARCHAR"},
-            {"name": "PublisherName", "type": "VARCHAR"},
-            {"name": "ChargeType", "type": "VARCHAR"},
-            {"name": "Frequency", "type": "VARCHAR"},
-            {"name": "PricingModel", "type": "VARCHAR"},
-            {"name": "AvailabilityZone", "type": "VARCHAR"},
-            {"name": "BillingAccountId", "type": "BIGINT"},
-            {"name": "BillingAccountName", "type": "VARCHAR"},
-            {"name": "BillingCurrencyCode", "type": "VARCHAR"},
-            {"name": "BillingPeriodStartDate", "type": "DATE"},
-            {"name": "BillingPeriodEndDate", "type": "DATE"},
-            {"name": "BillingProfileId", "type": "BIGINT"},
-            {"name": "BillingProfileName", "type": "VARCHAR"},
-            {"name": "InvoiceSectionId", "type": "VARCHAR"},
-            {"name": "IsAzureCreditEligible", "type": "BOOLEAN"},
-            {"name": "PartNumber", "type": "VARCHAR"},
-            {"name": "PayGPrice", "type": "DOUBLE"},
-            {"name": "PlanName", "type": "VARCHAR"},
-            {"name": "ServiceFamily", "type": "VARCHAR"},
-            {"name": "CostAllocationRuleName", "type": "VARCHAR"},
-            {"name": "benefitId", "type": "VARCHAR"},
-            {"name": "benefitName", "type": "VARCHAR"},
-        ]
 
     def preclean(self):
-        tmp_dir = f"storage/tmp/azure"
-        if os.path.exists(tmp_dir):
-            shutil.rmtree(tmp_dir)
+        if os.path.exists(self.tmp_dir):
+            shutil.rmtree(self.tmp_dir)
         return None
 
     def extract_months(self):
@@ -233,36 +179,30 @@ class AzureHandler:
 
     def download_datafiles(self, manifest):
         local_files = []
-        # schema_string = (
-        #     "("
-        #     + ",".join(
-        #         [
-        #             column["name"] + " " + column["type"]
-        #             for column in manifest["columns"]
-        #         ]
-        #     )
-        #     + ")"
-        # )
-        con = duckdb.connect()
-        for data_file in manifest["data_files"]:
-            destination_path = f"storage/tmp/azure/{data_file}"
+        for data_file in manifest.data_files:
+            destination_path = f"{self.tmp_dir}/{data_file}"
             print(f"Downloading to {destination_path}")
             self.storage_client.download_object(data_file, destination_path)
             local_files.append(destination_path)
             print(f"Downloaded {data_file}")
+
+        return local_files
+
+    def convert_parquet(self, local_files):
         dirname = os.path.dirname(local_files[0])
-        con.sql(
-            f"""CREATE TABLE azure_tmp AS SELECT * FROM read_csv('{dirname}/*.csv', 
-                header = true, 
-                dateformat = '%m/%d/%Y'
-            )"""
-        )
-        columns = [
-            {"name": result[0], "type": result[1]}
-            for result in con.sql("DESCRIBE azure_tmp").fetchall()
-        ]
-        con.sql(
-            f"COPY (SELECT * FROM azure_tmp) TO 'storage/tmp/azure/azure-tmp.parquet' (FORMAT 'parquet')"
-        )
-        con.close()
-        return ["storage/tmp/azure/azure-tmp.parquet"], columns
+        with duckdb.connect() as con:
+            # Here we convert the csv to Parquet, because DuckDB is excellent with
+            # parsing CSV and Clickhouse is a bit fussy in this regard.  The Azure
+            # files come over with dates in the format MM/DD/YYYY, which DuckDB
+            # can be made to deal with, but Clickhouse cannot.
+            con.sql(
+                f"""CREATE TABLE azure_tmp AS SELECT * FROM read_csv('{dirname}/*.csv', 
+                    header = true, 
+                    dateformat = '%m/%d/%Y'
+                )"""
+            )
+            con.sql(
+                f"COPY azure_tmp TO '{self.tmp_dir}/azure-tmp.parquet' (FORMAT 'parquet')"
+            )
+            con.close()
+        return f"{self.tmp_dir}/azure-tmp.parquet"
