@@ -40,7 +40,7 @@ class SchemaHandler:
     def align_schemas(self, columns: list):
         for column in columns:
             self.client.command(
-                f"ALTER TABLE {self.vendor}_data_{self.version} ADD COLUMN IF NOT EXISTS {column['name']} {column['type']}"
+                f"ALTER TABLE {self.vendor}_data_{self.version} ADD COLUMN IF NOT EXISTS {column.name} {column.type}"
             )
 
     def drop_partition(self, billing_period: datetime.datetime):

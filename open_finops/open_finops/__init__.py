@@ -1,14 +1,27 @@
 import os
 import datetime
-from dataclasses import dataclass
 import pytz
+from pydantic import BaseModel
 
 import duckdb
 from clickhouse.clickhouse_client import create_client
 
 
-@dataclass
-class ManifestObject:
+class Column(BaseModel):
+    """
+    The column object, represents an individual column of the manifest's
+    data files/schema.
+
+    Attributes:
+        name (str): The name of the column.
+        type (str): The type of the column.
+    """
+
+    name: str
+    type: str
+
+
+class ManifestObject(BaseModel):
     """
     The manifest object.
 
@@ -24,7 +37,7 @@ class ManifestObject:
     billing_period: datetime.datetime
     execution_id: str
     data_files: list[str]
-    columns: list[dict]
+    columns: list[Column]
     vendor: str
     version: str
 
