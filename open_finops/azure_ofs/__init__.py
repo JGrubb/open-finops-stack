@@ -196,7 +196,7 @@ class AzureHandler:
             # files come over with dates in the format MM/DD/YYYY, which DuckDB
             # can be made to deal with, but Clickhouse cannot.
             con.sql(
-                f"""CREATE TABLE azure_tmp AS SELECT * FROM read_csv('{dirname}/*.csv', 
+                f"""CREATE TABLE azure_tmp AS SELECT * FROM read_csv('{dirname}/*', 
                     header = true, 
                     dateformat = '%m/%d/%Y'
                 )"""
