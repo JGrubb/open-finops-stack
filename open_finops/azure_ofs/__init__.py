@@ -177,7 +177,7 @@ class AzureHandler:
         self.build_manifests()
         return self.manifests
 
-    def download_datafiles(self, manifest):
+    def download_billing_files(self, manifest):
         local_files = []
         for data_file in manifest.data_files:
             destination_path = f"{self.tmp_dir}/{data_file}"
@@ -196,7 +196,7 @@ class AzureHandler:
             # files come over with dates in the format MM/DD/YYYY, which DuckDB
             # can be made to deal with, but Clickhouse cannot.
             con.sql(
-                f"""CREATE TABLE azure_tmp AS SELECT * FROM read_csv('{dirname}/*.csv', 
+                f"""CREATE TABLE azure_tmp AS SELECT * FROM read_csv('{dirname}/*', 
                     header = true, 
                     dateformat = '%m/%d/%Y'
                 )"""

@@ -1,4 +1,3 @@
-import sys
 import argparse
 import json
 import datetime
@@ -67,7 +66,7 @@ parser.add_argument(
 args = parser.parse_args()
 if args.reset:
     AwsSchemaHandler(args.cur_version).reset()
-    sys.exit()
+    raise SystemExit
 
 
 # set up the tables if this is a fresh install

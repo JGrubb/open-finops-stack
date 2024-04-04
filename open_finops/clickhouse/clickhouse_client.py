@@ -1,5 +1,6 @@
 import os
 import clickhouse_connect
+from clickhouse_connect.driver.exceptions import OperationalError
 from platformshconfig import Config as PlatformshConfig
 
 
@@ -26,7 +27,10 @@ def create_client(settings=None):
             port=os.getenv("CLICKHOUSE_PORT", "8123"),
             settings=settings,
         )
-
-    client = clickhouse_connect.get_client(**credentials)
+    try:
+        client = clickhouse_connect.get_client(**credentials)
+    except OperationalError as e:
+        print(e)
+        raise SystemExit
 
     return client

@@ -2,7 +2,7 @@ import re
 import pytz
 
 import dateutil.parser as date_parser
-from open_finops import ManifestObject
+from open_finops import ManifestObject, Column
 
 
 class AWSManifestNormalizer:
@@ -31,12 +31,10 @@ class AWSManifestNormalizer:
         }
 
         columns = [
-            {
-                "name": f"{column['category']}_{re.sub(':', '_', column['name'])}",
-                "type": type_mapping.get(
-                    column.get("type", "String")
-                ),  # old manifests don't have a type
-            }
+            Column(
+                name=f"{column['category']}_{re.sub(':', '_', column['name'])}",
+                type=type_mapping.get(column.get("type", "String")),
+            )
             for column in self.manifest["columns"]
         ]
         billing_period = date_parser.parse(

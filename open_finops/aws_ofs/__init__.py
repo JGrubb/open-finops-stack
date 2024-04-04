@@ -21,7 +21,11 @@ class AwsHandler:
         self.aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY")
         self.local_storage = "/".join([os.getenv("OFS_STORAGE_DIR", "storage"), "aws"])
         self.tmp_dir = f"{self.local_storage}/tmp"
-        self.billing_path_property = None
+
+        required = (self.bucket_name, self.prefix, self.export_name)
+        for item in required:
+            if item == None:
+                raise KeyError("Missing a required argument.")
 
     def preclean(self):
         if os.path.exists(self.local_storage):

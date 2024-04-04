@@ -90,12 +90,13 @@ for manifest in manifests:
         end_date=args.end_date,
     ):
         continue
-    local_files = handler.download_datafiles(manifest)
-    manifest.columns = extract_schema(local_files[0])
+    local_files = handler.download_billing_files(manifest)
+    local_parquet = handler.convert_parquet(local_files)
+    manifest.columns = extract_schema(local_parquet)
     schema_handler = AzureSchemaHandler(args.export_version)
     schema_handler.align_schemas(manifest.columns)
     schema_handler.drop_partition(manifest.billing_period)
-    for local_file in local_files:
-        load_file(manifest, local_file)
+    # for local_file in local_files:
+    load_file(manifest, local_parquet)
     update_state(manifest)
-    print(f"Loaded {manifest['billing_period']}")
+    print(f"Loaded {manifest.billing_period}")
