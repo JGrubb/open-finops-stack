@@ -1,4 +1,3 @@
-import os
 import datetime
 import pytz
 from pydantic import BaseModel
@@ -123,7 +122,8 @@ def update_state(manifest: ManifestObject):
 
 def extract_schema(file_path):
     """
-    Extract the schema from a file.
+    Extract the schema from a file. Uses duckdb to call DESCRIBE on the file, typically
+    a Parquet file, but could theoretically be anything that Duck can eat.
 
     Args:
         file_path (str): The path to the file.
@@ -132,9 +132,7 @@ def extract_schema(file_path):
         list: The schema of the file.
     """
     with duckdb.connect() as con:
-        columns = [
-            {"name": result[0], "type": result[1]}
-            for result in con.sql(f"DESCRIBE SELECT * from '{file_path}'").fetchall()
-        ]
+        results = con.sql(f"DESCRIBE SELECT * from '{file_path}'").fetchall()
+        columns = [Column(name=result[0], type=result[1]) for result in results]
         con.close()
     return columns
