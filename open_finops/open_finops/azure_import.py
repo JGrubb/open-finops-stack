@@ -1,7 +1,7 @@
 import argparse
 import datetime
 
-from open_finops import do_we_load_it, update_state, extract_schema
+from open_finops import do_we_load_it, update_state, extract_schema, parse_date_str
 from azure_ofs import AzureSchemaSetup, AzureHandler, AzureSchemaHandler
 from clickhouse import load_file
 
@@ -44,13 +44,13 @@ parser.add_argument(
 
 parser.add_argument(
     "--start_date",
-    type=lambda s: datetime.datetime.strptime(s, "%Y-%m"),
+    type=parse_date_str,
     help="The start date for the import in the format YYYY-MM",
 )
 
 parser.add_argument(
     "--end_date",
-    type=lambda s: datetime.datetime.strptime(s, "%Y-%m"),
+    type=parse_date_str,
     help="The end date for the import in the format YYYY-MM",
 )
 

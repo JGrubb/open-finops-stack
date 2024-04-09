@@ -1,5 +1,7 @@
 import datetime
 import pytz
+
+import dateparser
 from pydantic import BaseModel
 
 import duckdb
@@ -41,6 +43,13 @@ class ManifestObject(BaseModel):
     version: str
 
 
+def parse_date_str(date_str: str):
+    date_object = dateparser.parse(date_str).replace(
+        day=1, hour=0, minute=0, second=0, microsecond=0, tzinfo=pytz.UTC
+    )
+    return date_object
+
+
 def do_we_load_it(manifest: ManifestObject, **kwargs):
     """
     Determine if we should load the given manifest.  Three things to check in this order:
@@ -57,18 +66,14 @@ def do_we_load_it(manifest: ManifestObject, **kwargs):
     Returns:
         bool: True if we should load the manifest, False otherwise.
     """
-    if kwargs.get("start_date") and manifest.billing_period < kwargs[
-        "start_date"
-    ].replace(tzinfo=pytz.UTC):
+    if kwargs.get("start_date") and manifest.billing_period < kwargs["start_date"]:
         print(
             f"Skipping {manifest.billing_period}: before configured start date of {kwargs['start_date']}"
         )
         return False
 
     # If the manifest represents a billing period from after the configured end date, skip it
-    if kwargs.get("end_date") and manifest.billing_period >= kwargs["end_date"].replace(
-        tzinfo=pytz.UTC
-    ):
+    if kwargs.get("end_date") and manifest.billing_period >= kwargs["end_date"]:
         print(
             f"Skipping {manifest.billing_period}: after configured end date of {kwargs['end_date']}"
         )
