@@ -1,12 +1,8 @@
-import sys
-
 from clickhouse.clickhouse_client import create_client
 from clickhouse_connect.driver.tools import insert_file
 
-from open_finops import ManifestObject
 
-
-def load_file(manifest: ManifestObject, file_path: str):
+def load_file(manifest: dict, file_path: str):
     """
     Loads a file into ClickHouse database.
 
