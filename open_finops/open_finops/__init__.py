@@ -82,13 +82,13 @@ def do_we_load_it(manifest: ManifestObject, **kwargs):
     # If the manifest represents a billing period that has already been loaded, skip it
     client = create_client()
 
-    result = client.command(
+    result = client.query(
         f"""
         SELECT 1 FROM {manifest.vendor}_state_{manifest.version} 
           WHERE execution_id = '{manifest.execution_id}' 
           AND billing_month = toDateTime('{manifest.billing_period.strftime("%Y-%m-%d %H:%M:%S")}')"""
     )
-    if result == 1:
+    if int(result.summary["result_rows"]) != 0:
         print(
             f"Skipping manifest {manifest.execution_id} for {manifest.billing_period} - already loaded"
         )

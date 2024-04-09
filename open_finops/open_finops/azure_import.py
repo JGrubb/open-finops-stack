@@ -84,7 +84,7 @@ handler = AzureHandler(
 manifests = handler.main()
 
 for manifest in manifests:
-    if not args.mock and not do_we_load_it(
+    if not do_we_load_it(
         manifest,
         start_date=args.start_date,
         end_date=args.end_date,
