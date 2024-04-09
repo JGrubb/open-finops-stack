@@ -61,16 +61,19 @@ class SchemaHandler:
         )
 
     def reset(self):
+        print(f"Dropping {self.vendor}_data_{self.version}")
         self.client.command(
             f"""
             DROP TABLE IF EXISTS {self.vendor}_data_{self.version}
             """
         )
+        print(f"Dropping {self.vendor}_state_{self.version}")
         self.client.command(
             f"""
             DROP TABLE IF EXISTS {self.vendor}_state_{self.version}
             """
         )
+        print("success")
 
 
 class AwsSchemaHandler(SchemaHandler):
