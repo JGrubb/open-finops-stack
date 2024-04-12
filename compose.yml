@@ -1,0 +1,13 @@
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server
+    ports:
+      - 8123:8123
+      - 9000:9000
+  metabase:
+    image: metabase/metabase:latest
+    working_dir: /metabase
+    volumes:
+      - ./metabase:/metabase
+    ports:
+      - 3000:3000
