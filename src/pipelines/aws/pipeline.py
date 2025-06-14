@@ -201,32 +201,53 @@ def read_report_file(
         yield from read_csv_file(None, bucket, key, aws_creds)
 
 
-def read_csv_file(s3_client, bucket: str, key: str) -> Iterator[Dict[str, Any]]:
-    """Read CSV file from S3 and yield records."""
-    response = s3_client.get_object(Bucket=bucket, Key=key)
+def read_csv_file(s3_client, bucket: str, key: str, aws_creds: Dict[str, Any]) -> Iterator[Dict[str, Any]]:
+    """Read CSV file from S3 using DuckDB and yield records."""
     
-    # Handle gzipped files
-    if key.endswith('.gz'):
-        file_content = gzip.decompress(response['Body'].read())
-        csv_reader = csv.DictReader(io.StringIO(file_content.decode('utf-8')))
-    else:
-        csv_reader = csv.DictReader(io.StringIO(response['Body'].read().decode('utf-8')))
+    # Create a temporary DuckDB connection
+    conn = duckdb.connect()
     
-    for row in csv_reader:
-        # Clean up column names (remove any prefixes)
-        cleaned_row = {}
-        for col, val in row.items():
-            # Handle different column naming conventions
-            if '/' in col:
-                # Remove prefix (e.g., "lineItem/UsageAmount" -> "UsageAmount")
-                clean_col = col.split('/')[-1]
-            else:
-                clean_col = col
+    # Install and load the httpfs extension for S3 access
+    conn.execute("INSTALL httpfs")
+    conn.execute("LOAD httpfs")
+    
+    # Configure AWS credentials for DuckDB
+    conn.execute(f"SET s3_access_key_id='{aws_creds['access_key_id']}'")
+    conn.execute(f"SET s3_secret_access_key='{aws_creds['secret_access_key']}'")
+    conn.execute(f"SET s3_region='{aws_creds.get('region', 'us-east-1')}'")
+    
+    # Read directly from S3 using DuckDB
+    s3_path = f"s3://{bucket}/{key}"
+    
+    try:
+        # Handle gzipped files - DuckDB can read them directly
+        if key.endswith('.gz'):
+            result = conn.execute(f"SELECT * FROM read_csv_auto('{s3_path}', compression='gzip')").fetchall()
+        else:
+            result = conn.execute(f"SELECT * FROM read_csv_auto('{s3_path}')").fetchall()
             
-            # Convert empty strings to None
-            cleaned_row[clean_col] = val if val != '' else None
+        columns = [desc[0] for desc in conn.description]
         
-        yield cleaned_row
+        print(f"    Loaded {len(result)} rows from CSV file")
+        print(f"    Columns: {len(columns)}")
+        
+        # Yield records as dictionaries
+        for row in result:
+            record = dict(zip(columns, row))
+            # Clean up column names (remove any prefixes)
+            cleaned_record = {}
+            for col, val in record.items():
+                # Handle different column naming conventions
+                if '/' in col:
+                    # Remove prefix (e.g., "lineItem/UsageAmount" -> "UsageAmount")
+                    clean_col = col.split('/')[-1]
+                else:
+                    clean_col = col
+                cleaned_record[clean_col] = val
+            yield cleaned_record
+            
+    finally:
+        conn.close()
 
 
 def read_parquet_file(s3_client, bucket: str, key: str, aws_creds: Dict[str, Any]) -> Iterator[Dict[str, Any]]:
