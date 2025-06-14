@@ -3,14 +3,14 @@
 import csv
 import gzip
 import io
+import tempfile
+import os
 from datetime import datetime
 from typing import Iterator, Dict, Any, Optional
 import boto3
 import dlt
 from dlt.sources import DltResource
-import pyarrow.parquet as pq
-import pyarrow as pa
-import pandas as pd
+import duckdb
 
 from .manifest import ManifestLocator, ManifestFile
 from ...core.config import AWSConfig
@@ -137,20 +137,33 @@ def billing_period_resource(
     for report_key in manifest.report_keys:
         print(f"  Processing: {report_key}")
         
+        # Extract key from S3 URI if needed (CUR v2 uses full S3 URIs)
+        if report_key.startswith('s3://'):
+            # Parse s3://bucket/key format to extract just the key
+            parts = report_key.replace('s3://', '').split('/', 1)
+            if len(parts) == 2:
+                s3_bucket, s3_key = parts
+            else:
+                raise ValueError(f"Invalid S3 URI format: {report_key}")
+        else:
+            # CUR v1 format - key only
+            s3_bucket = config.bucket
+            s3_key = report_key
+        
         # Determine format from file extension or config
         if config.export_format:
             file_format = config.export_format
-        elif report_key.endswith('.parquet'):
+        elif s3_key.endswith('.parquet'):
             file_format = 'parquet'
-        elif report_key.endswith('.csv.gz') or report_key.endswith('.csv'):
+        elif s3_key.endswith('.csv.gz') or s3_key.endswith('.csv'):
             file_format = 'csv'
         else:
-            raise ValueError(f"Cannot determine file format for {report_key}")
+            raise ValueError(f"Cannot determine file format for {s3_key}")
         
         # Yield records from the file
         yield from read_report_file(
-            bucket=config.bucket,
-            key=report_key,
+            bucket=s3_bucket,
+            key=s3_key,
             file_format=file_format,
             aws_creds=aws_creds
         )
@@ -180,19 +193,12 @@ def read_report_file(
     file_format: str,
     aws_creds: Dict[str, Any]
 ) -> Iterator[Dict[str, Any]]:
-    """Read records from a CUR report file."""
-    
-    s3_client = boto3.client(
-        's3',
-        aws_access_key_id=aws_creds.get('access_key_id'),
-        aws_secret_access_key=aws_creds.get('secret_access_key'),
-        region_name=aws_creds.get('region', 'us-east-1')
-    )
+    """Read records from a CUR report file using DuckDB."""
     
     if file_format == 'parquet':
-        yield from read_parquet_file(s3_client, bucket, key)
+        yield from read_parquet_file(None, bucket, key, aws_creds)
     else:
-        yield from read_csv_file(s3_client, bucket, key)
+        yield from read_csv_file(None, bucket, key, aws_creds)
 
 
 def read_csv_file(s3_client, bucket: str, key: str) -> Iterator[Dict[str, Any]]:
@@ -223,25 +229,39 @@ def read_csv_file(s3_client, bucket: str, key: str) -> Iterator[Dict[str, Any]]:
         yield cleaned_row
 
 
-def read_parquet_file(s3_client, bucket: str, key: str) -> Iterator[Dict[str, Any]]:
-    """Read Parquet file from S3 and yield records."""
-    response = s3_client.get_object(Bucket=bucket, Key=key)
+def read_parquet_file(s3_client, bucket: str, key: str, aws_creds: Dict[str, Any]) -> Iterator[Dict[str, Any]]:
+    """Read Parquet file from S3 using DuckDB and yield records."""
     
-    # Read parquet file into Arrow table
-    parquet_file = io.BytesIO(response['Body'].read())
-    table = pq.read_table(parquet_file)
+    # Create a temporary DuckDB connection
+    conn = duckdb.connect()
     
-    # Convert to pandas for easier iteration (you could also use Arrow directly)
-    df = table.to_pandas()
+    # Install and load the httpfs extension for S3 access
+    conn.execute("INSTALL httpfs")
+    conn.execute("LOAD httpfs")
     
-    # Yield records as dictionaries
-    for _, row in df.iterrows():
-        record = row.to_dict()
-        # Convert pandas NaN to None
-        for key, value in record.items():
-            if pd.isna(value):
-                record[key] = None
-        yield record
+    # Configure AWS credentials for DuckDB
+    conn.execute(f"SET s3_access_key_id='{aws_creds['access_key_id']}'")
+    conn.execute(f"SET s3_secret_access_key='{aws_creds['secret_access_key']}'")
+    conn.execute(f"SET s3_region='{aws_creds.get('region', 'us-east-1')}'")
+    
+    # Read directly from S3 using DuckDB
+    s3_path = f"s3://{bucket}/{key}"
+    
+    try:
+        # Query the parquet file directly
+        result = conn.execute(f"SELECT * FROM read_parquet('{s3_path}')").fetchall()
+        columns = [desc[0] for desc in conn.description]
+        
+        print(f"    Loaded {len(result)} rows from parquet file")
+        print(f"    Columns: {len(columns)}")
+        
+        # Yield records as dictionaries
+        for row in result:
+            record = dict(zip(columns, row))
+            yield record
+            
+    finally:
+        conn.close()
 
 
 def run_aws_pipeline(config: AWSConfig, 
