@@ -42,6 +42,12 @@ storage/
 *.duckdb.wal
 *.parquet
 *.csv
+*.csv.gz
+
+# Test data
+test-data-sample/
+test-aws-cur-sample/
+test-*.csv
 
 # IDE
 .idea/
