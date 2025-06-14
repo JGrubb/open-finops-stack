@@ -43,6 +43,10 @@ storage/
 *.parquet
 *.csv
 
+# Test data
+test-data-sample/
+test-aws-cur-sample/
+
 # IDE
 .idea/
 *.swp
