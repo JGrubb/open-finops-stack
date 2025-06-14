@@ -1,9 +1,9 @@
 version: '3.8'
 
 services:
-  # Metabase for visualization
+  # Metabase for visualization with DuckDB support
   metabase:
-    image: metabase/metabase:latest
+    build: ./docker/metabase
     container_name: metabase
     ports:
       - "3000:3000"
@@ -14,10 +14,13 @@ services:
       MB_DB_USER: metabase
       MB_DB_PASS: metabase
       MB_DB_HOST: postgres
+      # Add Java options for better DuckDB performance
+      JAVA_OPTS: "-Xmx4g -Xms1g"
     depends_on:
       - postgres
     volumes:
       - metabase-data:/metabase-data
+      - ./data:/data:ro  # Mount our data directory for DuckDB access
 
   # Postgres for Metabase metadata
   postgres:
