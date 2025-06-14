@@ -1,0 +1,27 @@
+# Open FinOps Stack Requirements
+
+# Data pipeline
+dlt[duckdb]>=0.4.0
+dlt[parquet]>=0.4.0
+
+# AWS SDK
+boto3>=1.28.0
+
+# Configuration
+toml>=0.10.2
+
+# Data processing
+pandas>=2.0.0
+pyarrow>=12.0.0
+
+# Database drivers (optional, for different destinations)
+# dlt[postgres]>=0.4.0
+# dlt[snowflake]>=0.4.0
+# dlt[bigquery]>=0.4.0
+# dlt[redshift]>=0.4.0
+
+# Development dependencies (install with pip install -r requirements-dev.txt)
+# pytest>=7.0.0
+# black>=22.0.0
+# mypy>=1.0.0
+# ruff>=0.1.0
