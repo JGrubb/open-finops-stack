@@ -234,13 +234,13 @@ def read_csv_file(s3_client, bucket: str, key: str, aws_creds: Dict[str, Any]) -
         # Yield records as dictionaries
         for row in result:
             record = dict(zip(columns, row))
-            # Clean up column names (remove any prefixes)
+            # Clean up column names (replace / with _)
             cleaned_record = {}
             for col, val in record.items():
                 # Handle different column naming conventions
                 if '/' in col:
-                    # Remove prefix (e.g., "lineItem/UsageAmount" -> "UsageAmount")
-                    clean_col = col.split('/')[-1]
+                    # Replace / with _ (e.g., "lineItem/UnblendedCost" -> "lineItem_UnblendedCost")
+                    clean_col = col.replace('/', '_')
                 else:
                     clean_col = col
                 cleaned_record[clean_col] = val
@@ -279,7 +279,17 @@ def read_parquet_file(s3_client, bucket: str, key: str, aws_creds: Dict[str, Any
         # Yield records as dictionaries
         for row in result:
             record = dict(zip(columns, row))
-            yield record
+            # Clean up column names (replace / with _)
+            cleaned_record = {}
+            for col, val in record.items():
+                # Handle different column naming conventions
+                if '/' in col:
+                    # Replace / with _ (e.g., "lineItem/UnblendedCost" -> "lineItem_UnblendedCost")
+                    clean_col = col.replace('/', '_')
+                else:
+                    clean_col = col
+                cleaned_record[clean_col] = val
+            yield cleaned_record
             
     finally:
         conn.close()

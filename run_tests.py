@@ -82,14 +82,14 @@ def main():
     
     # Run unit tests
     if not run_command(
-        ["python", "-m", "pytest", "tests/unit/", "-v", "--tb=short"],
+        ["python3", "-m", "pytest", "tests/unit/", "-v", "--tb=short"],
         "Running unit tests"
     ):
         all_passed = False
     
     # Run integration tests
     if not run_command(
-        ["python", "-m", "pytest", "tests/integration/", "-v", "--tb=short"],
+        ["python3", "-m", "pytest", "tests/integration/", "-v", "--tb=short"],
         "Running integration tests"
     ):
         all_passed = False
@@ -97,7 +97,7 @@ def main():
     # Run all tests with coverage (optional)
     if "--coverage" in sys.argv:
         if not run_command(
-            ["python", "-m", "pytest", "--cov=src", "--cov-report=term-missing"],
+            ["python3", "-m", "pytest", "--cov=src", "--cov-report=term-missing"],
             "Running tests with coverage"
         ):
             all_passed = False
@@ -106,13 +106,13 @@ def main():
     if "--quality" in sys.argv:
         # Black formatting check
         run_command(
-            ["python", "-m", "black", "--check", "src/", "tests/"],
+            ["python3", "-m", "black", "--check", "src/", "tests/"],
             "Checking code formatting (black)"
         )
         
         # Ruff linting
         run_command(
-            ["python", "-m", "ruff", "check", "src/", "tests/"],
+            ["python3", "-m", "ruff", "check", "src/", "tests/"],
             "Running linter (ruff)"
         )
     

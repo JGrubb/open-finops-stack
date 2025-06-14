@@ -49,6 +49,30 @@ class TestManifestFile:
         
         assert manifest.report_keys == ["file1.csv.gz", "file2.csv.gz"]
     
+    def test_report_keys_v2_with_data_files(self):
+        """Test report_keys property with CUR v2 dataFiles."""
+        manifest = ManifestFile(
+            bucket="test-bucket",
+            key="test-key",
+            billing_period="2024-01",
+            version="v2",
+            data={"dataFiles": ["s3://bucket/file1.parquet", "s3://bucket/file2.parquet"]}
+        )
+        
+        assert manifest.report_keys == ["s3://bucket/file1.parquet", "s3://bucket/file2.parquet"]
+    
+    def test_report_keys_v2_empty_when_no_data_files(self):
+        """Test report_keys property returns empty list when v2 manifest has no dataFiles."""
+        manifest = ManifestFile(
+            bucket="test-bucket",
+            key="test-key", 
+            billing_period="2024-01",
+            version="v2",
+            data={"reportKeys": ["file1.parquet", "file2.parquet"]}  # v2 should ignore reportKeys
+        )
+        
+        assert manifest.report_keys == []  # v2 only looks for dataFiles
+    
     def test_assembly_id(self):
         """Test assembly_id property."""
         manifest = ManifestFile(
