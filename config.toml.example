@@ -1,0 +1,45 @@
+# Open FinOps Stack Configuration
+# Copy this file to config.toml and update with your values
+
+[project]
+# Project-level defaults
+name = "open-finops-stack"
+# Default data directory for DuckDB and other local storage
+data_dir = "./data"
+
+[aws]
+# AWS CUR pipeline configuration
+# All these values can be overridden via command-line flags
+
+# Required settings (no defaults)
+# bucket = "your-cur-bucket-name"
+# prefix = "your-cur-prefix"  
+# export_name = "your-cur-export-name"
+
+# Optional settings with defaults
+cur_version = "v1"  # Options: "v1" or "v2"
+export_format = "csv"  # Options: "csv" or "parquet" (auto-detected if not specified)
+
+# Date range filters (optional - imports all data if not specified)
+# start_date = "2024-01"  # Format: YYYY-MM
+# end_date = "2024-12"    # Format: YYYY-MM
+
+# Pipeline behavior
+reset = false  # Drop existing tables before import
+
+# AWS credentials (optional - uses AWS SDK credential chain if not specified)
+# access_key_id = ""
+# secret_access_key = ""
+# region = "us-east-1"
+
+[azure]
+# Azure billing pipeline configuration (future)
+# storage_account = ""
+# container = ""
+# export_name = ""
+
+[gcp]
+# GCP billing pipeline configuration (future)
+# project_id = ""
+# dataset_id = ""
+# table_id = ""

@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  # Metabase for visualization
+  metabase:
+    image: metabase/metabase:latest
+    container_name: metabase
+    ports:
+      - "3000:3000"
+    environment:
+      MB_DB_TYPE: postgres
+      MB_DB_DBNAME: metabase
+      MB_DB_PORT: 5432
+      MB_DB_USER: metabase
+      MB_DB_PASS: metabase
+      MB_DB_HOST: postgres
+    depends_on:
+      - postgres
+    volumes:
+      - metabase-data:/metabase-data
+
+  # Postgres for Metabase metadata
+  postgres:
+    image: postgres:15-alpine
+    container_name: metabase_postgres
+    environment:
+      POSTGRES_DB: metabase
+      POSTGRES_USER: metabase
+      POSTGRES_PASSWORD: metabase
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  # DuckDB (for development - will be added when we build the API)
+  # duckdb:
+  #   build: ./src/api
+  #   container_name: duckdb_api
+  #   ports:
+  #     - "8080:8080"
+  #   volumes:
+  #     - ./data:/data
+
+volumes:
+  metabase-data:
+  postgres-data:
