@@ -1,0 +1,32 @@
+# Extended compose file that includes the pipeline service
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.pipeline.yml up
+
+version: '3.8'
+
+services:
+  # Pipeline service for data ingestion
+  finops-pipeline:
+    build: .
+    container_name: finops-pipeline
+    volumes:
+      - ./data:/data
+      - ./config.toml:/app/config.toml:ro
+      - ./tmp:/tmp  # For temporary test data
+    environment:
+      - OPEN_FINOPS_DATA_DIR=/data
+    profiles:
+      - pipeline  # Only start when explicitly requested
+    # No default command - run specific commands as needed
+    
+  # Data ingestion job examples (use with docker-compose run)
+  aws-import:
+    extends: finops-pipeline
+    command: ["aws", "import-cur"]
+    profiles:
+      - tools
+    
+  aws-list:
+    extends: finops-pipeline  
+    command: ["aws", "list-manifests"]
+    profiles:
+      - tools
