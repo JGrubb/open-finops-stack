@@ -50,6 +50,7 @@ dlt_pipeline.log
 
 # IDE
 .idea/
+.vscode/
 *.swp
 *.swo
 *~
