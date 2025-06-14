@@ -65,7 +65,8 @@ def aws_import_cur(args):
         run_aws_pipeline(
             config=config.aws,
             destination=args.destination,
-            table_strategy=args.table_strategy
+            table_strategy=args.table_strategy,
+            project_config=config.project
         )
         print("\n✅ Import completed successfully!")
     except Exception as e:

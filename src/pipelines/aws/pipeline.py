@@ -246,7 +246,8 @@ def read_parquet_file(s3_client, bucket: str, key: str) -> Iterator[Dict[str, An
 
 def run_aws_pipeline(config: AWSConfig, 
                     destination: str = "duckdb",
-                    table_strategy: str = "separate") -> None:
+                    table_strategy: str = "separate",
+                    project_config = None) -> None:
     """Run the AWS CUR pipeline.
     
     Args:
@@ -255,6 +256,7 @@ def run_aws_pipeline(config: AWSConfig,
         table_strategy: How to organize tables
             - "separate": Each billing period gets its own table (recommended)
             - "single": All data in one table with billing_period column
+        project_config: Project configuration for data directory
     """
     
     # Validate configuration
@@ -263,12 +265,28 @@ def run_aws_pipeline(config: AWSConfig,
     temp_config.aws = config
     temp_config.validate_aws_config()
     
-    # Create pipeline
-    pipeline = dlt.pipeline(
-        pipeline_name="aws_cur_pipeline",
-        destination=destination,
-        dataset_name="aws_billing"
-    )
+    # Set up data directory
+    if project_config and project_config.data_dir:
+        from pathlib import Path
+        data_dir = Path(project_config.data_dir)
+        data_dir.mkdir(exist_ok=True)
+        db_path = data_dir / "finops.duckdb"
+    else:
+        db_path = "./data/finops.duckdb"
+    
+    # Create pipeline with centralized database
+    if destination == "duckdb":
+        pipeline = dlt.pipeline(
+            pipeline_name="finops_pipeline",
+            destination=dlt.destinations.duckdb(db_path),
+            dataset_name="aws_billing"
+        )
+    else:
+        pipeline = dlt.pipeline(
+            pipeline_name="finops_pipeline",
+            destination=destination,
+            dataset_name="aws_billing"
+        )
     
     # For single table strategy with proper partition replacement
     if table_strategy == "single":
@@ -327,11 +345,19 @@ def run_aws_pipeline(config: AWSConfig,
                 )]
             )
             
-            print(f"  Loaded {load_info.metrics.get('row_count', 0)} rows")
+            # Count rows loaded for this billing period
+            try:
+                with pipeline.sql_client() as client:
+                    result = client.execute_sql(f"SELECT COUNT(*) FROM billing_data WHERE billing_period = '{manifest.billing_period}'")
+                    rows = result[0][0] if result else 0
+                    print(f"  Loaded {rows:,} rows")
+            except Exception as e:
+                print(f"  Loaded data (row count unavailable: {e})")
     
     else:
         # Use separate tables strategy (default and recommended)
         print("Using separate tables strategy")
+        print(f"Database location: {db_path}")
         
         # Run pipeline with separate tables
         load_info = pipeline.run(
@@ -342,5 +368,25 @@ def run_aws_pipeline(config: AWSConfig,
         print(f"\nPipeline completed!")
         print(f"Load info: {load_info}")
         
-        # Show some statistics
-        print(f"\nTotal rows loaded: {load_info.metrics.get('row_count', 0)}")
+        # Show some statistics by querying the database directly
+        total_rows = 0
+        try:
+            with pipeline.sql_client() as client:
+                # Get list of billing tables
+                tables_result = client.execute_sql(
+                    "SELECT table_name FROM information_schema.tables "
+                    "WHERE table_schema = 'aws_billing' AND table_name LIKE 'billing_%'"
+                )
+                
+                print(f"\nTable summary:")
+                for table_row in tables_result:
+                    table_name = table_row[0]
+                    count_result = client.execute_sql(f"SELECT COUNT(*) FROM aws_billing.{table_name}")
+                    rows = count_result[0][0] if count_result else 0
+                    total_rows += rows
+                    print(f"  {table_name}: {rows:,} rows")
+                    
+        except Exception as e:
+            print(f"Could not get row counts: {e}")
+        
+        print(f"\nTotal rows in database: {total_rows:,}")

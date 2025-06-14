@@ -31,53 +31,7 @@ FOCUS isn't a product—it's a specification that provides "guidance to cloud ve
 
 Here's what the architecture looks like before and after FOCUS:
 
-```mermaid
-graph TB
-    subgraph "Before FOCUS: Vendor-Specific Complexity"
-        AWS1[AWS CUR v1<br/>lineItem/UsageAmount<br/>lineItem/UnblendedCost] --> AWSETL[AWS ETL Pipeline]
-        AWS2[AWS CUR v2<br/>Different Schema] --> AWSETL2[AWS ETL Pipeline v2]
-        Azure[Azure Billing<br/>Quantity<br/>EffectiveCost] --> AzureETL[Azure ETL Pipeline]
-        GCP[GCP Billing<br/>usage.amount<br/>cost] --> GCPETL[GCP ETL Pipeline]
-        
-        AWSETL --> AWSModel[AWS Data Model]
-        AWSETL2 --> AWSModel2[AWS Data Model v2]
-        AzureETL --> AzureModel[Azure Data Model]
-        GCPETL --> GCPModel[GCP Data Model]
-        
-        AWSModel --> Mapping[Complex Mapping Logic]
-        AWSModel2 --> Mapping
-        AzureModel --> Mapping
-        GCPModel --> Mapping
-        
-        Mapping --> Analytics1[Analytics & Dashboards<br/>Fragile & Vendor-Specific]
-    end
-    
-    subgraph "After FOCUS: Unified Architecture"
-        AWS3[AWS FOCUS Export<br/>UsageQuantity<br/>EffectiveCost] --> Transform1[FOCUS Transform]
-        Azure2[Azure FOCUS Export<br/>UsageQuantity<br/>EffectiveCost] --> Transform2[FOCUS Transform]
-        GCP2[GCP FOCUS Export<br/>UsageQuantity<br/>EffectiveCost] --> Transform3[FOCUS Transform]
-        
-        Transform1 --> FocusSchema[FOCUS Standard Schema<br/>BillingPeriod<br/>ServiceName<br/>UsageQuantity<br/>EffectiveCost<br/>ResourceId]
-        Transform2 --> FocusSchema
-        Transform3 --> FocusSchema
-        
-        FocusSchema --> Analytics2[Analytics & Dashboards<br/>Reusable & Multi-Cloud]
-    end
-    
-    classDef vendor fill:#ff9999
-    classDef etl fill:#ffcc99
-    classDef model fill:#99ccff
-    classDef focus fill:#99ff99
-    classDef analytics fill:#cc99ff
-    
-    class AWS1,AWS2,Azure,GCP,AWS3,Azure2,GCP2 vendor
-    class AWSETL,AWSETL2,AzureETL,GCPETL,Transform1,Transform2,Transform3 etl
-    class AWSModel,AWSModel2,AzureModel,GCPModel model
-    class FocusSchema focus
-    class Analytics1,Analytics2 analytics
-```
-
-*Note: For Substack publication, render this Mermaid diagram as PNG using [mermaid.live](https://mermaid.live/) and embed as an image.*
+*[FOCUS Architecture Comparison diagram would be embedded here]*
 
 The transformation isn't just about fewer ETL pipelines—it's about fundamentally different infrastructure patterns. With FOCUS, you can:
 
