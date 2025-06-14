@@ -40,8 +40,13 @@ class TestAWSPipelineIntegration:
             
             # Mock list_objects_v2 to return our test files
             test_files = []
+            period_mapping = {
+                "2024-01": "20240101-20240201",
+                "2024-02": "20240201-20240301"
+            }
             for period in ["2024-01", "2024-02"]:
-                manifest_key = f"cur-reports/test-export/{period}01-{period}01/test-export-Manifest.json"
+                date_range = period_mapping[period]
+                manifest_key = f"cur-reports/test-export/{date_range}/test-export-Manifest.json"
                 test_files.append({'Key': manifest_key})
             
             mock_paginator = MagicMock()
