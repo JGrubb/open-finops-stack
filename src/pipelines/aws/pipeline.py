@@ -58,7 +58,7 @@ def aws_cur_source(config: AWSConfig):
         yield dlt.resource(
             billing_period_resource(manifest, config, aws_creds),
             name=table_name,
-            write_disposition="replace"  # Always replace the entire table
+            write_disposition="append"  # Use append to avoid table deletion issues
         )
 
 
