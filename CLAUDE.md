@@ -22,22 +22,33 @@ The project is being built in public through a blog series on The FinOperator bl
   - Complete AWS CUR pipeline with v1/v2 support
   - Centralized DuckDB database (`./data/finops.duckdb`)
   - CLI interface with `aws import-cur` and `aws list-manifests`
-  - Comprehensive testing framework (21 unit + 13 integration tests)
+  - Comprehensive testing framework (25 unit + 13 integration tests)
   - Real-world validation with actual AWS billing data
 
-### ✅ Phase 2: Visualization & Docker (COMPLETED)  
-- **Issue**: #19
-- **Status**: Metabase integration and Docker implementation complete
-- **PR**: #17 (ready for merge)
+### ✅ Phase 2: Core Infrastructure Enhancements (COMPLETED)  
+- **Issues**: #19, #27, #28, #29
+- **Status**: Major pipeline improvements implemented
+- **PRs**: #27 (DuckDB direct reading), #28 (DLT fixes), #29 (column naming)
 - **Capabilities**: 
+  - **DuckDB Direct Reading**: Replaced Pandas/PyArrow with native DuckDB for better performance
+  - **Enhanced CUR v2 Support**: Full parquet file support with S3 URI parsing
+  - **Improved Column Naming**: Preserves AWS CUR category prefixes (lineItem_*, reservation_*, etc.)
+  - **DLT Stability**: Fixed nested table deletion conflicts while preserving multi-database support
+  - **Comprehensive Testing**: Added CUR v2 specific tests, now 25 unit + 13 integration tests
+
+### 🔄 Phase 2: Visualization & Docker (IN PROGRESS)
+- **Issue**: #19 (Metabase components)
+- **Status**: Infrastructure ready, Metabase integration next
+- **Next Session Focus**: Metabase dashboard creation and integration
+- **Prepared Components**: 
   - Complete Metabase setup with DuckDB integration
   - Dockerized Python pipeline with no local setup required
   - One-command deployment for entire stack
   - Comprehensive visualization and Docker documentation
 
-### 🔄 Phase 2 Extensions: Dashboard & Analytics (PLANNED)
+### ⏳ Phase 2 Extensions: Dashboard & Analytics (PLANNED)
 - **Issues**: #22, #23, #24, #25 (split from #19)
-- **Status**: Ready for implementation after Phase 2 merge
+- **Status**: Ready for implementation after Metabase integration
 - **Focus**: 
   - Pre-built FinOps dashboard templates (#22)
   - Advanced analytics features (#23) 
@@ -84,7 +95,7 @@ All data models are designed around FOCUS (FinOps Open Cost and Usage Specificat
 │   ├── azure/                # Azure → FOCUS ⏳
 │   └── gcp/                  # GCP → FOCUS ⏳
 ├── tests/                    # Comprehensive test suites ✅
-│   ├── unit/                 # Unit tests (21 tests) ✅
+│   ├── unit/                 # Unit tests (23 tests) ✅
 │   ├── integration/          # Integration tests (13 tests) ✅
 │   ├── data/                 # Test data generators ✅
 │   └── compare_data.py       # Real vs test data analysis ✅
@@ -189,3 +200,27 @@ cur_version = "v1"  # or "v2"
 - **Blog Series**: Each phase documented in `docs/blog-posts/`
 - **Git Structure**: Clean feature branch workflow with PRs for each phase
 - **Data Directory**: `./data/` contains production database, `./tmp/` for test artifacts
+
+## 🎯 Next Session Work Plan
+
+**Tomorrow's Focus: Metabase Dashboard Integration**
+
+The core pipeline infrastructure is now solid with DuckDB direct reading, proper column naming, and comprehensive testing. Next session should focus on:
+
+1. **Metabase Dashboard Creation**: Build pre-built FinOps dashboards using the properly formatted AWS CUR data
+2. **Dashboard Templates**: Create reusable dashboard templates for common FinOps use cases
+3. **Data Visualization**: Leverage the clean column names (lineItem_*, reservation_*, etc.) for intuitive charts
+4. **Docker Integration**: Ensure Metabase + pipeline work seamlessly together
+
+**Current State**: 
+- ✅ Pipeline fully functional with proper column naming
+- ✅ Both CUR v1 (CSV) and v2 (parquet) formats supported  
+- ✅ All 36 tests passing (23 unit + 13 integration)
+- ✅ Three PRs ready: #27 (DuckDB), #28 (DLT fixes), #29 (column naming)
+- 🔄 Ready for Metabase dashboard work
+
+**Key Files for Tomorrow**:
+- `docs/VISUALIZATION.md` - Metabase setup guide
+- `docker-compose.yml` - Full stack deployment
+- `start-metabase.sh` - Metabase startup script
+- `dashboards/` - Dashboard templates (to be created)
