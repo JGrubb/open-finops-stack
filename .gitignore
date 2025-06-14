@@ -36,16 +36,17 @@ env/
 dlt_pipeline.log
 
 # Data
-data/
-storage/
+/data/
+/storage/
 *.duckdb
 *.duckdb.wal
-*.parquet
-*.csv
 
-# Test data
-test-data-sample/
-test-aws-cur-sample/
+# Generated data files (but not test generators)
+*.parquet
+*.csv.gz
+/test-data-sample/
+/test-aws-cur-sample/
+/test-*.csv
 
 # IDE
 .idea/
