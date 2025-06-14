@@ -58,6 +58,9 @@ Thumbs.db
 .env.local
 .env.*.local
 
+# Configuration
+config.toml
+
 # Docker
 .docker/
 
