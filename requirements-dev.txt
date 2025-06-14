@@ -1,0 +1,22 @@
+# Development dependencies for Open FinOps Stack
+
+# Base requirements
+-r requirements.txt
+
+# Testing
+pytest>=7.0.0
+pytest-cov>=4.0.0
+pytest-mock>=3.10.0
+
+# Code quality
+black>=22.0.0
+ruff>=0.1.0
+mypy>=1.0.0
+
+# Documentation
+mkdocs>=1.4.0
+mkdocs-material>=9.0.0
+
+# Utilities
+ipython>=8.0.0
+jupyter>=1.0.0
