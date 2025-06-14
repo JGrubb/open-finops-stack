@@ -24,7 +24,11 @@ class ManifestFile:
         """Get the S3 keys for the actual report files."""
         if not self.data:
             return []
-        return self.data.get("reportKeys", [])
+        # CUR v1 uses "reportKeys", CUR v2 uses "dataFiles"
+        if self.version == "v2":
+            return self.data.get("dataFiles", [])
+        else:
+            return self.data.get("reportKeys", [])
     
     @property
     def assembly_id(self) -> Optional[str]:
