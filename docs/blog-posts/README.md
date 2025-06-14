@@ -5,11 +5,11 @@ This directory contains the blog posts documenting the build of the Open FinOps 
 ## Published Posts
 
 1. [Building FinOps Data Infrastructure That Scales with FOCUS](./01-building-finops-infrastructure-with-focus.md) - Introduction to the project, FOCUS specification, and the mission to provide an open source alternative to expensive FinOps vendors.
+2. [Data Pipeline Architecture and CLI Design with DLT](./02-data-pipeline-architecture-cli-design-dlt.md) - Building modern data pipelines for cloud billing ingestion with robust configuration and testing frameworks.
+3. [AWS Billing Pipeline Implementation](./03-aws-billing-pipeline-implementation.md) - Complete AWS CUR pipeline with v1/v2 support, manifest processing, and comprehensive testing.
 
 ## Upcoming Posts
 
-2. **Data Pipeline Architecture and CLI Design with DLT** - Building modern data pipelines for cloud billing ingestion
-3. **AWS Billing Pipeline Implementation** - First cloud provider integration with CUR v1/v2 support
 4. **Azure Billing Integration and Multi-cloud Refactoring** - Adding Azure support and refactoring for multi-cloud patterns
 5. **dbt Transformations - Building the FOCUS Conversion Library** - Version-controlled transformations from vendor formats to FOCUS
 6. **Metabase Dashboards and Visualization Layer** - Pre-built dashboards for immediate visibility
