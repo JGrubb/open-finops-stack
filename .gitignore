@@ -45,6 +45,7 @@ storage/
 
 # IDE
 .idea/
+.vscode/
 *.swp
 *.swo
 *~
