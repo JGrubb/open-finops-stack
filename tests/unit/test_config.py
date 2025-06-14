@@ -31,15 +31,25 @@ class TestConfig:
         assert config.aws.cur_version == "v1"
         assert config.aws.export_format == "csv"
     
-    def test_env_overrides(self, monkeypatch):
+    def test_env_overrides(self, monkeypatch, temp_dir):
         """Test environment variable overrides."""
+        # Create a minimal config file for testing
+        config_file = temp_dir / "test_config.toml"
+        config_file.write_text("""
+[project]
+name = "test-project"
+
+[aws]
+bucket = "original-bucket"
+""")
+        
         monkeypatch.setenv("OPEN_FINOPS_AWS_BUCKET", "env-bucket")
         monkeypatch.setenv("OPEN_FINOPS_AWS_PREFIX", "env-prefix")
         monkeypatch.setenv("OPEN_FINOPS_AWS_EXPORT_NAME", "env-export")
         monkeypatch.setenv("AWS_ACCESS_KEY_ID", "test-key")
         monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "test-secret")
         
-        config = Config.load()
+        config = Config.load(config_file)
         
         assert config.aws.bucket == "env-bucket"
         assert config.aws.prefix == "env-prefix"
