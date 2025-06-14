@@ -49,6 +49,7 @@ test-aws-cur-sample/
 
 # IDE
 .idea/
+.vscode/
 *.swp
 *.swo
 *~
