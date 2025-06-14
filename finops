@@ -1,0 +1,8 @@
+#!/usr/bin/env python3
+"""Open FinOps Stack CLI entry point."""
+
+import sys
+from src.cli import main
+
+if __name__ == '__main__':
+    main()
