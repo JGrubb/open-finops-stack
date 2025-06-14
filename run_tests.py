@@ -45,7 +45,7 @@ def main():
         # Generate FOCUS-compliant sample data
         from tests.data.generate_sample_data import create_test_s3_structure
         
-        sample_path = Path("./test-data-sample")
+        sample_path = Path("./tmp/test-data-sample")
         sample_path.mkdir(exist_ok=True)
         
         create_test_s3_structure(
@@ -62,7 +62,7 @@ def main():
         # Generate AWS CUR sample data
         from tests.data.generate_aws_cur_data import create_aws_cur_test_structure
         
-        aws_sample_path = Path("./test-aws-cur-sample")
+        aws_sample_path = Path("./tmp/test-aws-cur-sample")
         aws_sample_path.mkdir(exist_ok=True)
         
         create_aws_cur_test_structure(
