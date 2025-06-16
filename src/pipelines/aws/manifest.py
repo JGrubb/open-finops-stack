@@ -35,7 +35,21 @@ class ManifestFile:
         """Get the assembly ID from the manifest."""
         if not self.data:
             return None
-        return self.data.get("assemblyId")
+        
+        # CUR v1 uses "assemblyId"
+        if self.version == "v1":
+            return self.data.get("assemblyId")
+        
+        # CUR v2 uses executionId as the unique identifier
+        if self.version == "v2":
+            execution_id = self.data.get("executionId")
+            if execution_id:
+                return execution_id
+            # Fallback to using billing period + timestamp if executionId is missing
+            # (this shouldn't happen in normal CUR v2 manifests)
+            return f"{self.billing_period}_{self.data.get('lastModified', 'unknown')}"
+        
+        return None
 
 
 class ManifestLocator:
