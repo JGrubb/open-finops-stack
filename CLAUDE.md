@@ -224,3 +224,6 @@ The core pipeline infrastructure is now solid with DuckDB direct reading, proper
 - `docker-compose.yml` - Full stack deployment
 - `start-metabase.sh` - Metabase startup script
 - `dashboards/` - Dashboard templates (to be created)
+
+PS - never add anything about Claude Code to any PRs, issues, or commit messages.
+There is a wrapper command at ./finops and a virtualenv at venv that you should always use.

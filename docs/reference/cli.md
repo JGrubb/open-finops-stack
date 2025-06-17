@@ -66,13 +66,14 @@ Import AWS Cost and Usage Reports from S3 into the local DuckDB database.
 |--------|-------|-------------|---------|
 | `--bucket` | `-b` | S3 bucket containing CUR files | - |
 | `--prefix` | `-p` | S3 prefix/path to CUR files | - |
-| `--export-name` | `-e` | Name of the CUR export | - |
+| `--export-name` | `-n` | Name of the CUR export | - |
 | `--cur-version` | `-v` | CUR version (`v1` or `v2`) | `v1` |
-| `--export-format` | - | Export format (`csv` or `parquet`) | `csv |
-| `--start-date` | - | Start date (YYYY-MM) | - |
-| `--end-date` | - | End date (YYYY-MM) | - |
-| `--reset` | - | Drop existing tables before import | `False` |
-| `--table-strategy` | - | Table organization (`separate` or `single`) | `separate` |
+| `--export-format` | `-f` | Export format (`csv` or `parquet`) | `csv` |
+| `--start-date` | `-s` | Start date (YYYY-MM) | - |
+| `--end-date` | `-e` | End date (YYYY-MM) | - |
+| `--reset` | `-r` | Drop existing tables before import | `False` |
+| `--table-strategy` | `-t` | Table organization (`separate` or `single`) | `separate` |
+| `--destination` | `-d` | DLT destination | `duckdb` |
 
 #### Examples
 
@@ -104,10 +105,10 @@ List available billing periods in the configured S3 bucket.
 |--------|-------|-------------|---------|
 | `--bucket` | `-b` | S3 bucket containing CUR files | - |
 | `--prefix` | `-p` | S3 prefix/path to CUR files | - |
-| `--export-name` | `-e` | Name of the CUR export | - |
+| `--export-name` | `-n` | Name of the CUR export | - |
 | `--cur-version` | `-v` | CUR version (`v1` or `v2`) | `v1` |
-| `--start-date` | - | Start date (YYYY-MM) | - |
-| `--end-date` | - | End date (YYYY-MM) | - |
+| `--start-date` | `-s` | Start date (YYYY-MM) | - |
+| `--end-date` | `-e` | End date (YYYY-MM) | - |
 
 #### Examples
 
@@ -120,6 +121,55 @@ List available billing periods in the configured S3 bucket.
 
 # Docker usage
 ./finops-docker.sh aws list-manifests
+```
+
+### aws show-state
+
+Show load state and version history for billing data.
+
+```bash
+./finops aws show-state [options]
+```
+
+#### Options
+
+| Option | Short | Description | Default |
+|--------|-------|-------------|---------|
+| `--export-name` | `-n` | Name of the CUR export | - |
+| `--billing-period` | `-B` | Show history for specific billing period (YYYY-MM) | - |
+
+#### Examples
+
+```bash
+# Show current versions for all billing periods
+./finops aws show-state
+
+# Show version history for specific period
+./finops aws show-state --billing-period 2024-01
+
+# Show state for specific export
+./finops aws show-state --export-name production-account
+```
+
+### aws list-exports
+
+List all available exports and their tables in the database.
+
+```bash
+./finops aws list-exports
+```
+
+#### Examples
+
+```bash
+# List all exports and tables
+./finops aws list-exports
+
+# Output shows:
+# - All unique exports in the database
+# - Tables for each export
+# - Row counts per table
+# - Total rows per export
 ```
 
 ## Configuration
@@ -183,17 +233,22 @@ The CLI provides detailed output including:
 Example output:
 
 ```
-Running AWS CUR import pipeline...
-Configuration:
-  Source: s3://my-bucket/reports/cur/monthly-export
-  Version: v2
-  Period: 2024-01 to 2024-03
+AWS CUR Import Configuration:
+  Bucket: my-bucket
+  Prefix: reports/cur
+  Export Name: production-account
+  CUR Version: v2
+  Format: parquet
+  Date Range: 2024-01 to 2024-03
   
-✅ Import completed successfully
-Tables created:
-  - aws_billing.billing_2024_01 (5,234 rows)
-  - aws_billing.billing_2024_02 (4,891 rows)
-  - aws_billing.billing_2024_03 (5,102 rows)
+✅ Import completed successfully!
+
+All billing tables:
+  production_account_2024_01: 5,234 rows
+  production_account_2024_02: 4,891 rows  
+  production_account_2024_03: 5,102 rows
+  
+Total rows in database: 15,227
 ```
 
 ## Troubleshooting

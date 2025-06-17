@@ -218,6 +218,110 @@ def aws_show_state(args):
         print("\nTip: Use --billing-period YYYY-MM to see version history for a specific month")
 
 
+def aws_list_exports(args):
+    """List all available exports and their tables."""
+    
+    # Load configuration
+    config_path = Path(args.config) if args.config else Path('config.toml')
+    config = Config.load(config_path)
+    
+    # Set up data directory path
+    if config.project and config.project.data_dir:
+        db_path = Path(config.project.data_dir) / "finops.duckdb"
+    else:
+        db_path = Path("./data/finops.duckdb")
+    
+    # Check if database exists
+    if not db_path.exists():
+        print(f"Error: Database not found at {db_path}", file=sys.stderr)
+        print("Run 'finops aws import-cur' first to create the database.", file=sys.stderr)
+        sys.exit(1)
+    
+    import duckdb
+    from ..core.state import LoadStateTracker
+    
+    # Initialize state tracker
+    state_tracker = LoadStateTracker(str(db_path))
+    
+    # Connect to database
+    conn = duckdb.connect(str(db_path))
+    
+    try:
+        # Get all unique exports from state table
+        exports_result = conn.execute("""
+            SELECT DISTINCT vendor, export_name 
+            FROM billing_state.load_state 
+            WHERE load_completed = TRUE
+            ORDER BY vendor, export_name
+        """).fetchall()
+        
+        if not exports_result:
+            print("No exports found in the database.")
+            return
+        
+        print("Available Exports and Tables")
+        print("=" * 80)
+        
+        for vendor, export_name in exports_result:
+            print(f"\n{vendor.upper()} Export: {export_name}")
+            print("-" * 40)
+            
+            # Get all tables for this export
+            if vendor == 'aws':
+                # Use the sanitized export name to find tables
+                from ..core.utils import sanitize_table_name
+                clean_export = sanitize_table_name(export_name)
+                
+                tables_result = conn.execute(f"""
+                    SELECT table_name 
+                    FROM information_schema.tables 
+                    WHERE table_schema = 'aws_billing' 
+                    AND table_name LIKE '{clean_export}_%'
+                    ORDER BY table_name
+                """).fetchall()
+                
+                if tables_result:
+                    print(f"Tables ({len(tables_result)}):")
+                    total_rows = 0
+                    
+                    for (table_name,) in tables_result:
+                        # Get row count
+                        count_result = conn.execute(f"SELECT COUNT(*) FROM aws_billing.{table_name}").fetchone()
+                        row_count = count_result[0] if count_result else 0
+                        total_rows += row_count
+                        
+                        # Extract billing period from table name
+                        parts = table_name.split('_')
+                        if len(parts) >= 2:
+                            billing_period = f"{parts[-2]}-{parts[-1]}"
+                        else:
+                            billing_period = "unknown"
+                        
+                        print(f"  - aws_billing.{table_name:<40} {row_count:>10,} rows  ({billing_period})")
+                    
+                    print(f"\nTotal rows for {export_name}: {total_rows:,}")
+                else:
+                    print("  No tables found (data may have been deleted)")
+        
+        # Show summary
+        print("\n" + "=" * 80)
+        print("SUMMARY")
+        print("=" * 80)
+        
+        # Count total exports by vendor
+        vendor_counts = {}
+        for vendor, _ in exports_result:
+            vendor_counts[vendor] = vendor_counts.get(vendor, 0) + 1
+        
+        for vendor, count in vendor_counts.items():
+            print(f"{vendor.upper()}: {count} export(s)")
+        
+        print(f"\nTotal exports: {len(exports_result)}")
+        
+    finally:
+        conn.close()
+
+
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -297,6 +401,13 @@ def main():
     state_parser.add_argument('--export-name', '-n', help='Name of the CUR export')
     state_parser.add_argument('--billing-period', '-B', help='Show history for specific billing period (YYYY-MM)')
     state_parser.set_defaults(func=aws_show_state)
+    
+    # AWS list-exports command
+    exports_parser = aws_subparsers.add_parser(
+        'list-exports',
+        help='List all available exports and their tables'
+    )
+    exports_parser.set_defaults(func=aws_list_exports)
     
     # Azure commands (placeholder)
     azure_parser = subparsers.add_parser('azure', help='Azure billing pipelines (coming soon)')

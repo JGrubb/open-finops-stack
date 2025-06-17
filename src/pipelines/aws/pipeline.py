@@ -15,6 +15,7 @@ import duckdb
 from .manifest import ManifestLocator, ManifestFile
 from ...core.config import AWSConfig
 from ...core.state import LoadStateTracker
+from ...core.utils import create_table_name
 
 
 @dlt.source(name="aws_cur")
@@ -55,7 +56,7 @@ def aws_cur_source(config: AWSConfig):
     # Strategy 1: Separate tables per billing period (recommended)
     # Each month gets its own table that's completely replaced
     for manifest in manifests:
-        table_name = f"billing_{manifest.billing_period.replace('-', '_')}"
+        table_name = create_table_name(config.export_name, manifest.billing_period)
         yield dlt.resource(
             billing_period_resource(manifest, config, aws_creds),
             name=table_name,
@@ -517,7 +518,7 @@ def run_aws_pipeline(config: AWSConfig,
             
             try:
                 # Create a resource for just this billing period
-                table_name = f"billing_{manifest.billing_period.replace('-', '_')}"
+                table_name = create_table_name(config.export_name, manifest.billing_period)
                 
                 # Run pipeline for this specific manifest
                 load_info = pipeline.run(
@@ -567,10 +568,14 @@ def run_aws_pipeline(config: AWSConfig,
         total_rows = 0
         try:
             with pipeline.sql_client() as client:
-                # Get list of billing tables
+                # Get list of billing tables for this export
+                # We need to match tables that contain the sanitized export name
+                from ...core.utils import sanitize_table_name
+                clean_export = sanitize_table_name(config.export_name)
+                
                 tables_result = client.execute_sql(
                     "SELECT table_name FROM information_schema.tables "
-                    "WHERE table_schema = 'aws_billing' AND table_name LIKE 'billing_%' "
+                    f"WHERE table_schema = 'aws_billing' AND table_name LIKE '{clean_export}_%' "
                     "ORDER BY table_name"
                 )
                 
@@ -582,7 +587,12 @@ def run_aws_pipeline(config: AWSConfig,
                     total_rows += rows
                     
                     # Get billing period from table name
-                    billing_period = table_name.replace('billing_', '').replace('_', '-')
+                    # Extract the last part after the export name (YYYY_MM)
+                    parts = table_name.split('_')
+                    if len(parts) >= 2:
+                        billing_period = f"{parts[-2]}-{parts[-1]}"
+                    else:
+                        billing_period = "unknown"
                     
                     # Get version info from state tracker
                     versions = state_tracker.get_version_history('aws', config.export_name, billing_period)
