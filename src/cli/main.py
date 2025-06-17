@@ -3,8 +3,10 @@
 import argparse
 import sys
 from pathlib import Path
+from datetime import datetime
 
 from ..core.config import Config
+from ..core.state import LoadStateTracker
 from ..pipelines.aws import run_aws_pipeline, ManifestLocator
 
 
@@ -135,6 +137,87 @@ def aws_list_manifests(args):
         sys.exit(1)
 
 
+def aws_show_state(args):
+    """Show load state and version history."""
+    
+    # Load configuration
+    config_path = Path(args.config) if args.config else Path('config.toml')
+    config = Config.load(config_path)
+    
+    # Override export name if provided
+    if args.export_name:
+        config.aws.export_name = args.export_name
+    
+    # Ensure we have an export name
+    if not config.aws.export_name:
+        print("Error: export_name is required. Set it in config.toml or use --export-name", file=sys.stderr)
+        sys.exit(1)
+    
+    # Set up data directory path
+    if config.project and config.project.data_dir:
+        db_path = Path(config.project.data_dir) / "finops.duckdb"
+    else:
+        db_path = Path("./data/finops.duckdb")
+    
+    # Check if database exists
+    if not db_path.exists():
+        print(f"Error: Database not found at {db_path}", file=sys.stderr)
+        print("Run 'finops aws import-cur' first to create the database.", file=sys.stderr)
+        sys.exit(1)
+    
+    # Initialize state tracker
+    state_tracker = LoadStateTracker(str(db_path))
+    
+    print(f"Load State for export: {config.aws.export_name}")
+    print("=" * 80)
+    
+    if args.billing_period:
+        # Show history for specific billing period
+        print(f"\nVersion History for {args.billing_period}:")
+        print("-" * 80)
+        
+        versions = state_tracker.get_version_history('aws', config.aws.export_name, args.billing_period)
+        
+        if not versions:
+            print(f"No load history found for billing period {args.billing_period}")
+        else:
+            print(f"{'Version ID':^40} {'Format':^6} {'Current':^7} {'Status':^10} {'Rows':>10} {'Timestamp':^20}")
+            print("-" * 80)
+            
+            for v in versions:
+                status = 'Complete' if v['load_completed'] else ('Failed' if v['error_message'] else 'In Progress')
+                current = '✓' if v['current_version'] else ''
+                rows = f"{v['row_count']:,}" if v['row_count'] else '-'
+                timestamp = v['load_timestamp'].strftime('%Y-%m-%d %H:%M:%S') if v['load_timestamp'] else '-'
+                
+                print(f"{v['version_id'][:40]:40} {v['data_format_version']:^6} {current:^7} {status:^10} {rows:>10} {timestamp:^20}")
+                
+                if v['error_message']:
+                    print(f"  Error: {v['error_message']}")
+    
+    else:
+        # Show current versions for all billing periods
+        print("\nCurrent Versions:")
+        print("-" * 80)
+        
+        current_versions = state_tracker.get_current_versions('aws', config.aws.export_name)
+        
+        if not current_versions:
+            print("No billing periods loaded yet")
+        else:
+            print(f"{'Billing Period':^15} {'Version ID':^40} {'Format':^6} {'Rows':>10} {'Files':>6} {'Loaded At':^20}")
+            print("-" * 80)
+            
+            for v in current_versions:
+                rows = f"{v['row_count']:,}" if v['row_count'] else '-'
+                files = str(v['file_count']) if v['file_count'] else '-'
+                timestamp = v['load_timestamp'].strftime('%Y-%m-%d %H:%M:%S') if v['load_timestamp'] else '-'
+                
+                print(f"{v['billing_period']:^15} {v['version_id'][:40]:40} {v['data_format_version']:^6} {rows:>10} {files:>6} {timestamp:^20}")
+        
+        print("\nTip: Use --billing-period YYYY-MM to see version history for a specific month")
+
+
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -205,6 +288,15 @@ def main():
     list_parser.add_argument('--start-date', help='Start date (YYYY-MM) to list')
     list_parser.add_argument('--end-date', help='End date (YYYY-MM) to list')
     list_parser.set_defaults(func=aws_list_manifests)
+    
+    # AWS show-state command
+    state_parser = aws_subparsers.add_parser(
+        'show-state',
+        help='Show load state and version history'
+    )
+    state_parser.add_argument('--export-name', '-e', help='Name of the CUR export')
+    state_parser.add_argument('--billing-period', help='Show history for specific billing period (YYYY-MM)')
+    state_parser.set_defaults(func=aws_show_state)
     
     # Azure commands (placeholder)
     azure_parser = subparsers.add_parser('azure', help='Azure billing pipelines (coming soon)')

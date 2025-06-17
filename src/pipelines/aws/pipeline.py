@@ -14,6 +14,7 @@ import duckdb
 
 from .manifest import ManifestLocator, ManifestFile
 from ...core.config import AWSConfig
+from ...core.state import LoadStateTracker
 
 
 @dlt.source(name="aws_cur")
@@ -325,6 +326,9 @@ def run_aws_pipeline(config: AWSConfig,
     else:
         db_path = "./data/finops.duckdb"
     
+    # Initialize state tracker
+    state_tracker = LoadStateTracker(str(db_path))
+    
     # Create pipeline with centralized database
     if destination == "duckdb":
         pipeline = dlt.pipeline(
@@ -369,75 +373,227 @@ def run_aws_pipeline(config: AWSConfig,
         for manifest in manifests:
             print(f"\nProcessing {manifest.billing_period}...")
             
-            # Delete existing data for this billing period
-            if destination == "duckdb":
-                with pipeline.sql_client() as client:
-                    # Check if table exists
-                    tables = client.execute_sql(
-                        "SELECT table_name FROM information_schema.tables "
-                        "WHERE table_schema = 'aws_billing' AND table_name = 'billing_data'"
-                    )
-                    
-                    if tables:
-                        # Delete data for this billing period
-                        delete_sql = f"""
-                        DELETE FROM aws_billing.billing_data 
-                        WHERE billing_period = '{manifest.billing_period}'
-                        """
-                        client.execute_sql(delete_sql)
-                        print(f"  Deleted existing data for {manifest.billing_period}")
+            # Fetch the full manifest to get assembly ID
+            full_manifest = locator.fetch_manifest(manifest, **aws_creds)
+            print(f"  Assembly ID: {full_manifest.assembly_id}")
             
-            # Load new data for this billing period
-            load_info = pipeline.run(
-                [dlt.resource(
-                    billing_period_with_partition(manifest, config, aws_creds),
-                    name="billing_data",
-                    write_disposition="append"
-                )]
+            # Check if this version has already been loaded
+            if state_tracker.is_version_loaded('aws', config.export_name, 
+                                              manifest.billing_period, full_manifest.assembly_id):
+                print(f"  ✓ Already loaded (skipping)")
+                continue
+            
+            # Start tracking this load
+            state_tracker.start_load(
+                vendor='aws',
+                export_name=config.export_name,
+                billing_period=manifest.billing_period,
+                version_id=full_manifest.assembly_id,
+                data_format_version=config.cur_version,
+                file_count=len(full_manifest.report_keys)
             )
             
-            # Count rows loaded for this billing period
             try:
-                with pipeline.sql_client() as client:
-                    result = client.execute_sql(f"SELECT COUNT(*) FROM billing_data WHERE billing_period = '{manifest.billing_period}'")
-                    rows = result[0][0] if result else 0
-                    print(f"  Loaded {rows:,} rows")
+                # Delete existing data for this billing period
+                if destination == "duckdb":
+                    with pipeline.sql_client() as client:
+                        # Check if table exists
+                        tables = client.execute_sql(
+                            "SELECT table_name FROM information_schema.tables "
+                            "WHERE table_schema = 'aws_billing' AND table_name = 'billing_data'"
+                        )
+                        
+                        if tables:
+                            # Delete data for this billing period
+                            delete_sql = f"""
+                            DELETE FROM aws_billing.billing_data 
+                            WHERE billing_period = '{manifest.billing_period}'
+                            """
+                            client.execute_sql(delete_sql)
+                            print(f"  Deleted existing data for {manifest.billing_period}")
+                
+                # Load new data for this billing period
+                load_info = pipeline.run(
+                    [dlt.resource(
+                        billing_period_with_partition(full_manifest, config, aws_creds),
+                        name="billing_data",
+                        write_disposition="append"
+                    )]
+                )
+                
+                # Count rows loaded for this billing period
+                row_count = 0
+                try:
+                    with pipeline.sql_client() as client:
+                        result = client.execute_sql(f"SELECT COUNT(*) FROM billing_data WHERE billing_period = '{manifest.billing_period}'")
+                        row_count = result[0][0] if result else 0
+                        print(f"  Loaded {row_count:,} rows")
+                except Exception as e:
+                    print(f"  Loaded data (row count unavailable: {e})")
+                
+                # Mark load as completed
+                state_tracker.complete_load(
+                    vendor='aws',
+                    export_name=config.export_name,
+                    billing_period=manifest.billing_period,
+                    version_id=full_manifest.assembly_id,
+                    row_count=row_count
+                )
+                
             except Exception as e:
-                print(f"  Loaded data (row count unavailable: {e})")
+                # Mark load as failed
+                state_tracker.fail_load(
+                    vendor='aws',
+                    export_name=config.export_name,
+                    billing_period=manifest.billing_period,
+                    version_id=full_manifest.assembly_id,
+                    error_message=str(e)
+                )
+                raise
     
     else:
         # Use separate tables strategy (default and recommended)
         print("Using separate tables strategy")
         print(f"Database location: {db_path}")
         
-        # Run pipeline with separate tables
-        load_info = pipeline.run(
-            aws_cur_source(config),
-            write_disposition="replace" if config.reset else "replace"
+        # Get all manifests first to check which need loading
+        aws_creds = {
+            'access_key_id': config.access_key_id,
+            'secret_access_key': config.secret_access_key,
+            'region': config.region
+        }
+        
+        locator = ManifestLocator(
+            bucket=config.bucket,
+            prefix=config.prefix,
+            export_name=config.export_name,
+            cur_version=config.cur_version
         )
         
-        print(f"\nPipeline completed!")
-        print(f"Load info: {load_info}")
+        manifests = locator.list_manifests(
+            start_date=config.start_date,
+            end_date=config.end_date,
+            **aws_creds
+        )
         
-        # Show some statistics by querying the database directly
+        # Filter manifests to only those that need loading
+        manifests_to_load = []
+        for manifest in manifests:
+            # Fetch full manifest to get assembly ID
+            full_manifest = locator.fetch_manifest(manifest, **aws_creds)
+            
+            # Check if already loaded (skip this check if reset flag is set)
+            if not config.reset and state_tracker.is_version_loaded('aws', config.export_name,
+                                             full_manifest.billing_period, full_manifest.assembly_id):
+                print(f"Skipping {full_manifest.billing_period} - already loaded (assembly ID: {full_manifest.assembly_id})")
+            else:
+                if config.reset:
+                    print(f"Will reload {full_manifest.billing_period} - reset flag set (assembly ID: {full_manifest.assembly_id})")
+                else:
+                    print(f"Will load {full_manifest.billing_period} - new version (assembly ID: {full_manifest.assembly_id})")
+                manifests_to_load.append(full_manifest)
+        
+        if not manifests_to_load:
+            print("\n✓ All billing periods are up to date!")
+            return
+        
+        print(f"\nLoading {len(manifests_to_load)} billing period(s)...")
+        
+        # Process each manifest that needs loading
+        for manifest in manifests_to_load:
+            print(f"\nProcessing {manifest.billing_period}...")
+            print(f"  Assembly ID: {manifest.assembly_id}")
+            print(f"  Report files: {len(manifest.report_keys)}")
+            
+            # Start tracking this load
+            state_tracker.start_load(
+                vendor='aws',
+                export_name=config.export_name,
+                billing_period=manifest.billing_period,
+                version_id=manifest.assembly_id,
+                data_format_version=config.cur_version,
+                file_count=len(manifest.report_keys)
+            )
+            
+            try:
+                # Create a resource for just this billing period
+                table_name = f"billing_{manifest.billing_period.replace('-', '_')}"
+                
+                # Run pipeline for this specific manifest
+                load_info = pipeline.run(
+                    dlt.resource(
+                        billing_period_resource(manifest, config, aws_creds),
+                        name=table_name,
+                        write_disposition="replace"  # Replace the entire table
+                    )
+                )
+                
+                # Count rows loaded
+                row_count = 0
+                try:
+                    with pipeline.sql_client() as client:
+                        result = client.execute_sql(f"SELECT COUNT(*) FROM aws_billing.{table_name}")
+                        row_count = result[0][0] if result else 0
+                        print(f"  ✓ Loaded {row_count:,} rows")
+                except Exception as e:
+                    print(f"  ✓ Loaded data (row count unavailable: {e})")
+                
+                # Mark load as completed
+                state_tracker.complete_load(
+                    vendor='aws',
+                    export_name=config.export_name,
+                    billing_period=manifest.billing_period,
+                    version_id=manifest.assembly_id,
+                    row_count=row_count
+                )
+                
+            except Exception as e:
+                # Mark load as failed
+                state_tracker.fail_load(
+                    vendor='aws',
+                    export_name=config.export_name,
+                    billing_period=manifest.billing_period,
+                    version_id=manifest.assembly_id,
+                    error_message=str(e)
+                )
+                print(f"  ✗ Failed: {e}")
+                raise
+        
+        # Show summary of all tables
+        print("\n" + "="*50)
+        print("SUMMARY")
+        print("="*50)
+        
         total_rows = 0
         try:
             with pipeline.sql_client() as client:
                 # Get list of billing tables
                 tables_result = client.execute_sql(
                     "SELECT table_name FROM information_schema.tables "
-                    "WHERE table_schema = 'aws_billing' AND table_name LIKE 'billing_%'"
+                    "WHERE table_schema = 'aws_billing' AND table_name LIKE 'billing_%' "
+                    "ORDER BY table_name"
                 )
                 
-                print(f"\nTable summary:")
+                print("\nAll billing tables:")
                 for table_row in tables_result:
                     table_name = table_row[0]
                     count_result = client.execute_sql(f"SELECT COUNT(*) FROM aws_billing.{table_name}")
                     rows = count_result[0][0] if count_result else 0
                     total_rows += rows
-                    print(f"  {table_name}: {rows:,} rows")
+                    
+                    # Get billing period from table name
+                    billing_period = table_name.replace('billing_', '').replace('_', '-')
+                    
+                    # Get version info from state tracker
+                    versions = state_tracker.get_version_history('aws', config.export_name, billing_period)
+                    current_version = next((v for v in versions if v['current_version']), None)
+                    
+                    if current_version:
+                        print(f"  {table_name}: {rows:,} rows (version: {current_version['version_id'][:8]}...)")
+                    else:
+                        print(f"  {table_name}: {rows:,} rows")
                     
         except Exception as e:
-            print(f"Could not get row counts: {e}")
+            print(f"Could not get table summary: {e}")
         
         print(f"\nTotal rows in database: {total_rows:,}")
