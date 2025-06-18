@@ -17,24 +17,24 @@ Technical reference and specifications.
 
 ## Data Specifications - TODO
 
-### [FOCUS Specification](focus.md) <!-- TODO: Create this file -->
+### FOCUS Specification - TODO
 - FinOps Open Cost and Usage Specification
 - Data model and field definitions
 - Transformation mapping from cloud providers
 
-### [API Documentation](api.md) <!-- TODO: Create this file -->
+### API Documentation - TODO
 - REST API endpoints
 - Data access patterns
 - Integration examples
 
 ## Configuration Reference
 
-### Environment Variables <!-- TODO: Create dedicated env vars documentation -->
+### Environment Variables - TODO
 - Complete list of configuration options
 - Security considerations
 - Default values and overrides
 
-### Database Schema <!-- TODO: Create database schema documentation -->
+### Database Schema - TODO
 - Table structures and relationships
 - Index strategies
 - Migration procedures
