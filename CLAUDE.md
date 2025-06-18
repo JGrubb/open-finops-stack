@@ -25,43 +25,53 @@ The project is being built in public through a blog series on The FinOperator bl
   - Comprehensive testing framework (25 unit + 13 integration tests)
   - Real-world validation with actual AWS billing data
 
-### ✅ Phase 2: Core Infrastructure Enhancements (COMPLETED)  
-- **Issues**: #19, #27, #28, #29
+### ✅ Phase 1.5: Core Infrastructure Enhancements (COMPLETED)  
+- **Issues**: #27, #28, #29, #30, #32
 - **Status**: Major pipeline improvements implemented
-- **PRs**: #27 (DuckDB direct reading), #28 (DLT fixes), #29 (column naming)
+- **PRs**: #27 (DuckDB direct reading), #28 (DLT fixes), #29 (column naming), #30 (state tracking), #33 (multi-export)
 - **Capabilities**: 
   - **DuckDB Direct Reading**: Replaced Pandas/PyArrow with native DuckDB for better performance
   - **Enhanced CUR v2 Support**: Full parquet file support with S3 URI parsing
   - **Improved Column Naming**: Preserves AWS CUR category prefixes (lineItem_*, reservation_*, etc.)
   - **DLT Stability**: Fixed nested table deletion conflicts while preserving multi-database support
+  - **Multi-Export Support**: Import multiple AWS accounts/exports simultaneously with table namespacing
+  - **State Tracking**: Intelligent deduplication and incremental imports
   - **Comprehensive Testing**: Added CUR v2 specific tests, now 25 unit + 13 integration tests
 
-### 🔄 Phase 2: Visualization & Docker (IN PROGRESS)
-- **Issue**: #19 (Metabase components)
-- **Status**: Infrastructure ready, Metabase integration next
-- **Next Session Focus**: Metabase dashboard creation and integration
-- **Prepared Components**: 
-  - Complete Metabase setup with DuckDB integration
-  - Dockerized Python pipeline with no local setup required
-  - One-command deployment for entire stack
-  - Comprehensive visualization and Docker documentation
+### 🔄 Phase 2: Container Runtime & Deployment Infrastructure (IN PROGRESS)
+- **Issue**: #34
+- **Status**: Setting up Podman-based deployment
+- **Focus**: 
+  - Podman as Docker Desktop alternative
+  - Container-based deployment for local and production
+  - One-command setup without licensing requirements
+  - Simple single VM production hosting
 
-### ⏳ Phase 2 Extensions: Dashboard & Analytics (PLANNED)
+### ⏳ Phase 3: Visualization & Analytics (PLANNED)
+- **Issue**: #19 (Metabase components)
+- **Status**: Infrastructure ready, awaiting Phase 2 completion
+- **Components**: 
+  - Complete Metabase setup with DuckDB integration
+  - Pre-built FinOps dashboard templates
+  - Custom dashboard creation guides
+  - Advanced analytics features
+
+### ⏳ Phase 3 Extensions: Dashboard Templates (PLANNED)
 - **Issues**: #22, #23, #24, #25 (split from #19)
-- **Status**: Ready for implementation after Metabase integration
+- **Status**: Ready for implementation after core visualization
 - **Focus**: 
   - Pre-built FinOps dashboard templates (#22)
   - Advanced analytics features (#23) 
   - Custom dashboard creation guides (#24)
   - Multi-cloud dashboard templates (#25)
 
-### ⏳ Phase 3: Multi-Cloud Support (PLANNED)
+### ⏳ Phase 4: Multi-Cloud Support (PLANNED)
 - **Issue**: #20 
 - **Focus**: Azure and GCP integration
 
-### ⏳ Phase 4: Production Deployment (PLANNED)
+### ⏳ Phase 5: Production Features & Transformations (PLANNED)
 - **Issue**: #21
-- **Focus**: dbt transformations and production packaging
+- **Focus**: dbt transformations, FOCUS compliance, production hardening
 
 ## Architecture Overview
 
@@ -203,27 +213,28 @@ cur_version = "v1"  # or "v2"
 
 ## 🎯 Next Session Work Plan
 
-**Tomorrow's Focus: Metabase Dashboard Integration**
+**Current Focus: Podman Deployment Infrastructure (Phase 2)**
 
-The core pipeline infrastructure is now solid with DuckDB direct reading, proper column naming, and comprehensive testing. Next session should focus on:
+With the core pipeline infrastructure complete and enhanced, we're now implementing container-based deployment using Podman as an open-source Docker alternative.
 
-1. **Metabase Dashboard Creation**: Build pre-built FinOps dashboards using the properly formatted AWS CUR data
-2. **Dashboard Templates**: Create reusable dashboard templates for common FinOps use cases
-3. **Data Visualization**: Leverage the clean column names (lineItem_*, reservation_*, etc.) for intuitive charts
-4. **Docker Integration**: Ensure Metabase + pipeline work seamlessly together
+**Active Work**: 
+- 🔄 Setting up Podman for local development
+- 🔄 Testing existing docker-compose.yml with podman-compose
+- 🔄 Creating deployment documentation
+- 🔄 Implementing containerized CLI wrapper
 
 **Current State**: 
-- ✅ Pipeline fully functional with proper column naming
+- ✅ Pipeline fully functional with multi-export support
 - ✅ Both CUR v1 (CSV) and v2 (parquet) formats supported  
-- ✅ All 36 tests passing (23 unit + 13 integration)
-- ✅ Three PRs ready: #27 (DuckDB), #28 (DLT fixes), #29 (column naming)
-- 🔄 Ready for Metabase dashboard work
+- ✅ All tests passing with comprehensive coverage
+- ✅ Five major PRs merged: #27, #28, #29, #30, #33
+- 🔄 Issue #34 created for Phase 2 Podman work
 
-**Key Files for Tomorrow**:
-- `docs/VISUALIZATION.md` - Metabase setup guide
-- `docker-compose.yml` - Full stack deployment
-- `start-metabase.sh` - Metabase startup script
-- `dashboards/` - Dashboard templates (to be created)
+**Key Files for Phase 2**:
+- `docker-compose.yml` - Existing stack definition
+- `docker/metabase/Dockerfile` - Custom Metabase with DuckDB
+- `finops-docker.sh` - Existing Docker wrapper (adapt for Podman)
+- `docs/PODMAN.md` - Deployment guide (to be created)
 
 PS - never add anything about Claude Code to any PRs, issues, or commit messages.
 There is a wrapper command at ./finops and a virtualenv at venv that you should always use.

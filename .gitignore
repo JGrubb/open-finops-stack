@@ -72,8 +72,10 @@ config.toml
 .docker/
 
 # Metabase
+/metabase/
 metabase-data/
 metabase.db/
+*.jar
 
 # Logs
 logs/
