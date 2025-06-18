@@ -5,6 +5,7 @@ services:
   metabase:
     build: ./docker/metabase
     container_name: metabase
+    platform: linux/amd64
     ports:
       - "3000:3000"
     environment:
@@ -26,6 +27,8 @@ services:
   postgres:
     image: postgres:15-alpine
     container_name: metabase_postgres
+    ports:
+      - "5432:5432"
     environment:
       POSTGRES_DB: metabase
       POSTGRES_USER: metabase
