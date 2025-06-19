@@ -15,7 +15,65 @@ import duckdb
 from .manifest import ManifestLocator, ManifestFile
 from ...core.config import AWSConfig
 from ...core.state import LoadStateTracker
-from ...core.utils import create_table_name
+from ...core.utils import create_table_name, sanitize_table_name
+
+
+def create_unified_view(export_name: str, pipeline) -> None:
+    """Create a unified view that combines all billing periods for an export.
+    
+    This view automatically handles schema evolution by using DuckDB's 
+    UNION BY NAME functionality.
+    """
+    
+    try:
+        with pipeline.sql_client() as client:
+            # Get all tables for this export
+            clean_export = sanitize_table_name(export_name)
+            
+            # Find all tables matching this export pattern
+            tables_result = client.execute_sql(f"""
+                SELECT table_name 
+                FROM information_schema.tables 
+                WHERE table_schema = 'aws_billing' 
+                AND table_name LIKE '{clean_export}_%'
+                AND table_name NOT LIKE '%_unified'
+                ORDER BY table_name
+            """)
+            
+            if not tables_result:
+                print(f"No tables found for export: {export_name}")
+                return
+            
+            print(f"Found {len(tables_result)} tables for export: {export_name}")
+            
+            # Build simple union query - let the existing date columns handle periods
+            table_queries = []
+            for (table_name,) in tables_result:
+                table_queries.append(f"SELECT * FROM aws_billing.{table_name}")
+                print(f"  - {table_name}")
+            
+            if table_queries:
+                # Create the unified view
+                view_name = f"{clean_export}_unified"
+                union_query = " UNION BY NAME ".join(table_queries)
+                
+                create_view_sql = f"""
+                    CREATE OR REPLACE VIEW aws_billing.{view_name} AS
+                    {union_query}
+                """
+                
+                client.execute_sql(create_view_sql)
+                
+                # Get row count from the view
+                count_result = client.execute_sql(f"SELECT COUNT(*) FROM aws_billing.{view_name}")
+                total_rows = count_result[0][0] if count_result else 0
+                
+                print(f"✓ Created unified view: aws_billing.{view_name}")
+                print(f"  Total rows: {total_rows:,}")
+                print(f"  Query: SELECT * FROM aws_billing.{view_name} WHERE lineItem_UsageStartDate >= '2024-01-01'")
+            
+    except Exception as e:
+        print(f"Failed to create unified view: {e}")
 
 
 @dlt.source(name="aws_cur")
@@ -607,3 +665,9 @@ def run_aws_pipeline(config: AWSConfig,
             print(f"Could not get table summary: {e}")
         
         print(f"\nTotal rows in database: {total_rows:,}")
+        
+        # Create unified view for this export
+        print("\n" + "="*50)
+        print("CREATING UNIFIED VIEW")
+        print("="*50)
+        create_unified_view(config.export_name, pipeline)

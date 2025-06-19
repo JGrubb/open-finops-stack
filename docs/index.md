@@ -51,12 +51,19 @@ open http://localhost:3000
 - [API Documentation](reference/api.md)
 - [FOCUS Specification](reference/focus.md)
 
+### 📝 [Blog Series](blog-posts/)
+- [Building FinOps Data Infrastructure That Scales with FOCUS](blog-posts/01-building-finops-infrastructure-with-focus.md)
+- [Data Pipeline Architecture and CLI Design with DLT](blog-posts/02-data-pipeline-architecture-cli-design-dlt.md)
+- [AWS Billing Pipeline: From Basic Implementation to Production-Ready](blog-posts/03-aws-billing-pipeline-implementation.md)
+
 ## Current Status
 
 - **✅ Phase 1**: AWS CUR pipeline, centralized database, comprehensive testing
-- **✅ Phase 2**: Metabase integration, Docker deployment, visualization
-- **🔄 Phase 3**: Pre-built dashboards, advanced analytics
+- **✅ Phase 1.5**: Performance optimizations, state tracking, multi-export support
+- **🔄 Phase 2**: Container runtime with Podman (Docker alternative)
+- **⏳ Phase 3**: Metabase visualization, pre-built dashboards
 - **⏳ Phase 4**: Multi-cloud support (Azure, GCP)
+- **⏳ Phase 5**: Production features, dbt transformations
 
 ## Why Open FinOps?
 
