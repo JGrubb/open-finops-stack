@@ -6,15 +6,17 @@ This directory contains the blog posts documenting the build of the Open FinOps 
 
 1. [Building FinOps Data Infrastructure That Scales with FOCUS](./01-building-finops-infrastructure-with-focus.md) - Introduction to the project, FOCUS specification, and the mission to provide an open source alternative to expensive FinOps vendors.
 
+2. [Data Pipeline Architecture and CLI Design with DLT](./02-data-pipeline-architecture-cli-design-dlt.md) - Building modern data pipelines for cloud billing ingestion with flexible configuration and comprehensive testing.
+
+3. [AWS Billing Pipeline: From Basic Implementation to Production-Ready](./03-aws-billing-pipeline-implementation.md) - Complete AWS CUR pipeline with performance optimizations, state tracking, and multi-account support.
+
 ## Upcoming Posts
 
-2. **Data Pipeline Architecture and CLI Design with DLT** - Building modern data pipelines for cloud billing ingestion
-3. **AWS Billing Pipeline Implementation** - First cloud provider integration with CUR v1/v2 support
-4. **Azure Billing Integration and Multi-cloud Refactoring** - Adding Azure support and refactoring for multi-cloud patterns
-5. **dbt Transformations - Building the FOCUS Conversion Library** - Version-controlled transformations from vendor formats to FOCUS
-6. **Metabase Dashboards and Visualization Layer** - Pre-built dashboards for immediate visibility
-7. **Docker Packaging and Deployment Automation** - One-command deployment of the entire stack
-8. **Production Scaling, Cost Allocation, and Advanced Analytics** - Taking the platform to production scale
+4. **Container Deployment with Podman: Open Source All The Way Down** - Containerization without Docker Desktop licensing, one-command deployment
+5. **Visualization Layer: Metabase + DuckDB for FinOps Analytics** - Pre-built dashboards and self-service analytics
+6. **Multi-Cloud Support: Adding Azure and GCP** - Extending the platform to handle all major cloud providers
+7. **FOCUS Transformations with dbt** - Version-controlled transformations from vendor formats to FOCUS specification
+8. **Production Deployment and Advanced Analytics** - Taking the platform to production scale with advanced features
 
 ## Blog Publishing
 
