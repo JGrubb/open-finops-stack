@@ -86,7 +86,7 @@ pip install open-finops[docker]  # Core + deployment tools
 
 **Solution**:
 ```bash
-pip install open-finops-aws
+pip install open-finops[aws]
 finops aws import-cur --export-name production-billing
 ```
 
