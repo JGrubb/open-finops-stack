@@ -15,14 +15,34 @@ class FinOpsCLI:
         self._discover_vendors()
     
     def _discover_vendors(self):
-        """Discover available vendor plugins."""
-        # For Phase 1, manually register AWS
-        # Phase 2 will add automatic discovery via entry points
+        """Discover vendor plugins via entry points."""
+        vendors_found = False
+        
         try:
-            from vendors.aws.cli import AWSCommands
-            self.vendors['aws'] = AWSCommands
+            # Phase 2: Automatic discovery via entry points
+            import pkg_resources
+            
+            entry_points = list(pkg_resources.iter_entry_points('open_finops.vendors'))
+            
+            for entry_point in entry_points:
+                try:
+                    vendor_class = entry_point.load()
+                    self.vendors[entry_point.name] = vendor_class
+                    print(f"✓ Loaded vendor plugin: {entry_point.name}")
+                    vendors_found = True
+                except Exception as e:
+                    print(f"⚠ Failed to load vendor plugin {entry_point.name}: {e}")
+                    
         except ImportError:
-            pass  # AWS not installed
+            pass  # pkg_resources not available
+        
+        # Fallback: Manual discovery for development mode
+        if not vendors_found:
+            try:
+                from vendors.aws.cli import AWSCommands
+                self.vendors['aws'] = AWSCommands
+            except ImportError:
+                pass  # AWS not installed
     
     def run(self):
         """Run the CLI."""
