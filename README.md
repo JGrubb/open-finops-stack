@@ -6,24 +6,49 @@
 
 The Open FinOps Stack is a FOCUS-first data platform that ingests cloud billing data from AWS, Azure, and GCP, transforms it into standardized formats, and provides visualization through pre-built dashboards. It's designed to replace expensive FinOps vendors that charge 2-3% of your cloud spend with open source infrastructure that costs pennies on the dollar.
 
-## Quick Start
+## Installation
 
+### 🚀 Recommended: Full Installation (Development)
 ```bash
 # Clone the repository
 git clone https://github.com/JGrubb/open-finops-stack.git
 cd open-finops-stack
 
-# Install dependencies
-pip install -e .
+# Install all components
+pip install -e ./core/ ./vendors/aws/ ./docker/
 
 # Run your first pipeline (AWS example)
-finops ingest aws --bucket your-cur-bucket --prefix path/to/cur
+./finops aws import-cur
 
 # Start the visualization layer
 docker-compose up -d
 ```
 
 Visit http://localhost:3000 to see your cloud costs in Metabase.
+
+### 📦 Production Installation (Future - Requires PyPI Publishing)
+```bash
+# Complete platform (all components) - Best for most users
+pip install open-finops
+
+# AWS-only installation - Lighter footprint
+pip install open-finops[aws]
+
+# Core framework only - For developers/integrators
+pip install open-finops[core]
+```
+
+### 🔧 Development Mode (Component by Component)
+```bash
+# Core framework only
+pip install -e ./core/
+
+# Add AWS functionality
+pip install -e ./vendors/aws/
+
+# Add Docker configurations  
+pip install -e ./docker/
+```
 
 ## Architecture
 
