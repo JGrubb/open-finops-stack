@@ -10,22 +10,22 @@ This section covers day-to-day usage of the Open FinOps Stack.
 
 ## Core Workflows
 
-### [AWS Integration](aws-integration.md)
+### AWS Integration - TODO
 - Setting up Cost and Usage Reports
 - Configuring S3 bucket access
 - Managing import schedules
 
-### [Data Management](data-management.md)
+### Data Management - TODO
 - Understanding the database structure
 - Data retention and cleanup
 - Backup and restore procedures
 
-### [Dashboards & Analytics](dashboards.md)
+### Dashboards & Analytics - TODO
 - Using pre-built dashboards
 - Creating custom visualizations
 - Advanced SQL queries for cost analysis
 
-### [Monitoring & Alerts](monitoring.md)
+### Monitoring & Alerts - TODO
 - Setting up cost alerts
 - Budget tracking
 - Anomaly detection

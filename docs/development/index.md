@@ -10,17 +10,17 @@ Information for developers contributing to the Open FinOps Stack.
 
 ## Getting Started
 
-### [Contributing](contributing.md)
+### Contributing - TODO
 - How to contribute to the project
 - Development workflow and standards
 - Code review process
 
-### [Architecture](architecture.md)
+### Architecture - TODO
 - System architecture overview
 - Component interactions
 - Design decisions and patterns
 
-### [Testing](testing.md)
+### Testing - TODO
 - Running the test suite
 - Writing tests for new features
 - Test data generation
