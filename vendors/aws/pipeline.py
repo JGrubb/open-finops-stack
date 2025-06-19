@@ -371,7 +371,7 @@ def run_aws_pipeline(config: AWSConfig,
     """
     
     # Validate configuration
-    from ...core.config import Config
+    from core.config import Config
     temp_config = Config()
     temp_config.aws = config
     temp_config.validate_aws_config()
