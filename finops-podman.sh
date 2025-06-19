@@ -1,0 +1,1 @@
+scripts/cli/finops-podman.sh
