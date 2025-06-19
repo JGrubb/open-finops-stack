@@ -345,32 +345,32 @@ def main():
     )
     import_parser.add_argument('--bucket', '-b', help='S3 bucket containing CUR files')
     import_parser.add_argument('--prefix', '-p', help='S3 prefix/path to CUR files')
-    import_parser.add_argument('--export-name', '-e', help='Name of the CUR export')
+    import_parser.add_argument('--export-name', '-n', help='Name of the CUR export')
     import_parser.add_argument(
         '--cur-version', '-v',
         choices=['v1', 'v2'],
         help='CUR version (default: v1)'
     )
     import_parser.add_argument(
-        '--export-format',
+        '--export-format', '-f',
         choices=['csv', 'parquet'],
         help='Export file format'
     )
-    import_parser.add_argument('--start-date', help='Start date (YYYY-MM) for import')
-    import_parser.add_argument('--end-date', help='End date (YYYY-MM) for import')
+    import_parser.add_argument('--start-date', '-s', help='Start date (YYYY-MM) for import')
+    import_parser.add_argument('--end-date', '-e', help='End date (YYYY-MM) for import')
     import_parser.add_argument(
-        '--reset',
+        '--reset', '-r',
         action='store_true',
         help='Drop existing tables before import'
     )
     import_parser.add_argument(
-        '--table-strategy',
+        '--table-strategy', '-t',
         choices=['separate', 'single'],
         default='separate',
         help='Table organization strategy (default: separate)'
     )
     import_parser.add_argument(
-        '--destination',
+        '--destination', '-d',
         default='duckdb',
         help='DLT destination (default: duckdb)'
     )
@@ -383,14 +383,14 @@ def main():
     )
     list_parser.add_argument('--bucket', '-b', help='S3 bucket containing CUR files')
     list_parser.add_argument('--prefix', '-p', help='S3 prefix/path to CUR files')
-    list_parser.add_argument('--export-name', '-e', help='Name of the CUR export')
+    list_parser.add_argument('--export-name', '-n', help='Name of the CUR export')
     list_parser.add_argument(
         '--cur-version', '-v',
         choices=['v1', 'v2'],
         help='CUR version (default: v1)'
     )
-    list_parser.add_argument('--start-date', help='Start date (YYYY-MM) to list')
-    list_parser.add_argument('--end-date', help='End date (YYYY-MM) to list')
+    list_parser.add_argument('--start-date', '-s', help='Start date (YYYY-MM) to list')
+    list_parser.add_argument('--end-date', '-e', help='End date (YYYY-MM) to list')
     list_parser.set_defaults(func=aws_list_manifests)
     
     # AWS show-state command
@@ -398,8 +398,8 @@ def main():
         'show-state',
         help='Show load state and version history'
     )
-    state_parser.add_argument('--export-name', '-e', help='Name of the CUR export')
-    state_parser.add_argument('--billing-period', help='Show history for specific billing period (YYYY-MM)')
+    state_parser.add_argument('--export-name', '-n', help='Name of the CUR export')
+    state_parser.add_argument('--billing-period', '-B', help='Show history for specific billing period (YYYY-MM)')
     state_parser.set_defaults(func=aws_show_state)
     
     # AWS list-exports command
