@@ -14,7 +14,8 @@ import duckdb
 
 from .manifest import ManifestLocator, ManifestFile
 from core.config import AWSConfig
-from core.state import LoadStateTracker
+from core.state_manager import LoadStateManager
+from core.backends.factory import create_backend
 from core.utils import create_table_name, sanitize_table_name
 
 
@@ -175,7 +176,8 @@ def aws_cur_single_table_source(config: AWSConfig):
 def billing_period_resource(
     manifest: ManifestFile,
     config: AWSConfig,
-    aws_creds: Dict[str, Any]
+    aws_creds: Dict[str, Any],
+    data_reader = None
 ) -> Iterator[Dict[str, Any]]:
     """DLT resource for a single billing period."""
     
@@ -220,19 +222,26 @@ def billing_period_resource(
         else:
             raise ValueError(f"Cannot determine file format for {s3_key}")
         
-        # Yield records from the file
-        yield from read_report_file(
-            bucket=s3_bucket,
-            key=s3_key,
-            file_format=file_format,
-            aws_creds=aws_creds
-        )
+        # Yield records from the file using data reader
+        if data_reader and file_format == 'parquet':
+            yield from data_reader.read_parquet_file(s3_bucket, s3_key, aws_creds)
+        elif data_reader and file_format == 'csv':
+            yield from data_reader.read_csv_file(s3_bucket, s3_key, aws_creds)
+        else:
+            # Fallback to old method for backward compatibility
+            yield from read_report_file(
+                bucket=s3_bucket,
+                key=s3_key,
+                file_format=file_format,
+                aws_creds=aws_creds
+            )
 
 
 def billing_period_with_partition(
     manifest: ManifestFile,
     config: AWSConfig,
-    aws_creds: Dict[str, Any]
+    aws_creds: Dict[str, Any],
+    data_reader = None
 ) -> Iterator[Dict[str, Any]]:
     """DLT resource that adds billing period to each record."""
     
@@ -241,7 +250,7 @@ def billing_period_with_partition(
     # Note: DLT doesn't have built-in partition deletion, so this would need
     # to be handled at the pipeline level
     
-    for record in billing_period_resource(manifest, config, aws_creds):
+    for record in billing_period_resource(manifest, config, aws_creds, data_reader):
         # Add the billing period to each record
         record['billing_period'] = manifest.billing_period
         yield record
@@ -358,7 +367,8 @@ def read_parquet_file(s3_client, bucket: str, key: str, aws_creds: Dict[str, Any
 def run_aws_pipeline(config: AWSConfig, 
                     destination: str = "duckdb",
                     table_strategy: str = "separate",
-                    project_config = None) -> None:
+                    project_config = None,
+                    database_config: Dict[str, Any] = None) -> None:
     """Run the AWS CUR pipeline.
     
     Args:
@@ -368,6 +378,7 @@ def run_aws_pipeline(config: AWSConfig,
             - "separate": Each billing period gets its own table (recommended)
             - "single": All data in one table with billing_period column
         project_config: Project configuration for data directory
+        database_config: Full configuration for backend factory
     """
     
     # Validate configuration
@@ -376,31 +387,35 @@ def run_aws_pipeline(config: AWSConfig,
     temp_config.aws = config
     temp_config.validate_aws_config()
     
-    # Set up data directory
-    if project_config and project_config.data_dir:
-        from pathlib import Path
-        data_dir = Path(project_config.data_dir)
-        data_dir.mkdir(exist_ok=True)
-        db_path = data_dir / "finops.duckdb"
-    else:
-        db_path = "./data/finops.duckdb"
+    # Create backend and get components
+    if database_config is None:
+        # Fallback to DuckDB for backward compatibility
+        if project_config and project_config.data_dir:
+            from pathlib import Path
+            data_dir = Path(project_config.data_dir)
+            data_dir.mkdir(exist_ok=True)
+            db_path = data_dir / "finops.duckdb"
+        else:
+            db_path = "./data/finops.duckdb"
+        
+        database_config = {
+            "database": {
+                "backend": "duckdb",
+                "duckdb": {"database_path": str(db_path)}
+            }
+        }
     
-    # Initialize state tracker
-    state_tracker = LoadStateTracker(str(db_path))
+    # Create backend
+    backend = create_backend(database_config)
+    state_manager = LoadStateManager(database_config)
+    data_reader = backend.create_data_reader()
     
-    # Create pipeline with centralized database
-    if destination == "duckdb":
-        pipeline = dlt.pipeline(
-            pipeline_name="finops_pipeline",
-            destination=dlt.destinations.duckdb(db_path),
-            dataset_name="aws_billing"
-        )
-    else:
-        pipeline = dlt.pipeline(
-            pipeline_name="finops_pipeline",
-            destination=destination,
-            dataset_name="aws_billing"
-        )
+    # Create pipeline using backend destination  
+    pipeline = dlt.pipeline(
+        pipeline_name="finops_pipeline",
+        destination=backend.get_dlt_destination(),
+        dataset_name=config.dataset_name
+    )
     
     # For single table strategy with proper partition replacement
     if table_strategy == "single":
@@ -437,13 +452,13 @@ def run_aws_pipeline(config: AWSConfig,
             print(f"  Assembly ID: {full_manifest.assembly_id}")
             
             # Check if this version has already been loaded
-            if state_tracker.is_version_loaded('aws', config.export_name, 
+            if state_manager.is_version_loaded('aws', config.export_name, 
                                               manifest.billing_period, full_manifest.assembly_id):
                 print(f"  ✓ Already loaded (skipping)")
                 continue
             
             # Start tracking this load
-            state_tracker.start_load(
+            state_manager.start_load(
                 vendor='aws',
                 export_name=config.export_name,
                 billing_period=manifest.billing_period,
@@ -474,7 +489,7 @@ def run_aws_pipeline(config: AWSConfig,
                 # Load new data for this billing period
                 load_info = pipeline.run(
                     [dlt.resource(
-                        billing_period_with_partition(full_manifest, config, aws_creds),
+                        billing_period_with_partition(full_manifest, config, aws_creds, data_reader),
                         name="billing_data",
                         write_disposition="append"
                     )]
@@ -491,7 +506,7 @@ def run_aws_pipeline(config: AWSConfig,
                     print(f"  Loaded data (row count unavailable: {e})")
                 
                 # Mark load as completed
-                state_tracker.complete_load(
+                state_manager.complete_load(
                     vendor='aws',
                     export_name=config.export_name,
                     billing_period=manifest.billing_period,
@@ -501,7 +516,7 @@ def run_aws_pipeline(config: AWSConfig,
                 
             except Exception as e:
                 # Mark load as failed
-                state_tracker.fail_load(
+                state_manager.fail_load(
                     vendor='aws',
                     export_name=config.export_name,
                     billing_period=manifest.billing_period,
@@ -513,7 +528,7 @@ def run_aws_pipeline(config: AWSConfig,
     else:
         # Use separate tables strategy (default and recommended)
         print("Using separate tables strategy")
-        print(f"Database location: {db_path}")
+        print(f"Database location: {backend.get_database_path_or_connection()}")
         
         # Get all manifests first to check which need loading
         aws_creds = {
@@ -542,7 +557,7 @@ def run_aws_pipeline(config: AWSConfig,
             full_manifest = locator.fetch_manifest(manifest, **aws_creds)
             
             # Check if already loaded (skip this check if reset flag is set)
-            if not config.reset and state_tracker.is_version_loaded('aws', config.export_name,
+            if not config.reset and state_manager.is_version_loaded('aws', config.export_name,
                                              full_manifest.billing_period, full_manifest.assembly_id):
                 print(f"Skipping {full_manifest.billing_period} - already loaded (assembly ID: {full_manifest.assembly_id})")
             else:
@@ -565,7 +580,7 @@ def run_aws_pipeline(config: AWSConfig,
             print(f"  Report files: {len(manifest.report_keys)}")
             
             # Start tracking this load
-            state_tracker.start_load(
+            state_manager.start_load(
                 vendor='aws',
                 export_name=config.export_name,
                 billing_period=manifest.billing_period,
@@ -581,7 +596,7 @@ def run_aws_pipeline(config: AWSConfig,
                 # Run pipeline for this specific manifest
                 load_info = pipeline.run(
                     dlt.resource(
-                        billing_period_resource(manifest, config, aws_creds),
+                        billing_period_resource(manifest, config, aws_creds, data_reader),
                         name=table_name,
                         write_disposition="replace"  # Replace the entire table
                     )
@@ -598,7 +613,7 @@ def run_aws_pipeline(config: AWSConfig,
                     print(f"  ✓ Loaded data (row count unavailable: {e})")
                 
                 # Mark load as completed
-                state_tracker.complete_load(
+                state_manager.complete_load(
                     vendor='aws',
                     export_name=config.export_name,
                     billing_period=manifest.billing_period,
@@ -608,7 +623,7 @@ def run_aws_pipeline(config: AWSConfig,
                 
             except Exception as e:
                 # Mark load as failed
-                state_tracker.fail_load(
+                state_manager.fail_load(
                     vendor='aws',
                     export_name=config.export_name,
                     billing_period=manifest.billing_period,
@@ -653,7 +668,7 @@ def run_aws_pipeline(config: AWSConfig,
                         billing_period = "unknown"
                     
                     # Get version info from state tracker
-                    versions = state_tracker.get_version_history('aws', config.export_name, billing_period)
+                    versions = state_manager.get_version_history('aws', config.export_name, billing_period)
                     current_version = next((v for v in versions if v['current_version']), None)
                     
                     if current_version:

@@ -13,6 +13,7 @@ class AWSConfig:
     bucket: Optional[str] = None
     prefix: Optional[str] = None
     export_name: Optional[str] = None
+    dataset_name: str = "aws_billing"
     cur_version: str = "v1"
     export_format: Optional[str] = None
     start_date: Optional[str] = None
@@ -21,6 +22,26 @@ class AWSConfig:
     access_key_id: Optional[str] = None
     secret_access_key: Optional[str] = None
     region: Optional[str] = None
+
+
+@dataclass
+class DatabaseConfig:
+    """Database backend configuration."""
+    backend: str = "duckdb"
+    
+    # DuckDB-specific settings
+    duckdb: Dict[str, Any] = field(default_factory=lambda: {
+        "database_path": "./data/finops.duckdb"
+    })
+    
+    # Snowflake-specific settings  
+    snowflake: Dict[str, Any] = field(default_factory=dict)
+    
+    # BigQuery-specific settings
+    bigquery: Dict[str, Any] = field(default_factory=dict)
+    
+    # PostgreSQL-specific settings
+    postgresql: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -34,6 +55,7 @@ class ProjectConfig:
 class Config:
     """Main configuration container."""
     project: ProjectConfig = field(default_factory=ProjectConfig)
+    database: DatabaseConfig = field(default_factory=DatabaseConfig)
     aws: AWSConfig = field(default_factory=AWSConfig)
     
     @classmethod
@@ -56,6 +78,9 @@ class Config:
         if "project" in config_data:
             config.project = ProjectConfig(**config_data["project"])
         
+        if "database" in config_data:
+            config.database = DatabaseConfig(**config_data["database"])
+        
         if "aws" in config_data:
             config.aws = AWSConfig(**config_data["aws"])
         
@@ -66,6 +91,12 @@ class Config:
     
     def _load_env_overrides(self):
         """Override configuration with environment variables."""
+        # Database environment overrides
+        if env_backend := os.getenv("OPEN_FINOPS_DATABASE_BACKEND"):
+            self.database.backend = env_backend
+        if env_db_path := os.getenv("OPEN_FINOPS_DATABASE_PATH"):
+            self.database.duckdb["database_path"] = env_db_path
+        
         # AWS environment overrides
         if env_bucket := os.getenv("OPEN_FINOPS_AWS_BUCKET"):
             self.aws.bucket = env_bucket
@@ -73,6 +104,8 @@ class Config:
             self.aws.prefix = env_prefix
         if env_export := os.getenv("OPEN_FINOPS_AWS_EXPORT_NAME"):
             self.aws.export_name = env_export
+        if env_dataset := os.getenv("OPEN_FINOPS_AWS_DATASET"):
+            self.aws.dataset_name = env_dataset
         
         # AWS credentials from standard AWS env vars
         if not self.aws.access_key_id:
@@ -110,3 +143,33 @@ class Config:
                 f"Missing required AWS configuration: {', '.join(missing)}. "
                 "Set these in config.toml, environment variables, or CLI flags."
             )
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert configuration to dictionary format for backend factory."""
+        return {
+            "project": {
+                "name": self.project.name,
+                "data_dir": self.project.data_dir
+            },
+            "database": {
+                "backend": self.database.backend,
+                "duckdb": self.database.duckdb,
+                "snowflake": self.database.snowflake,
+                "bigquery": self.database.bigquery,
+                "postgresql": self.database.postgresql
+            },
+            "aws": {
+                "bucket": self.aws.bucket,
+                "prefix": self.aws.prefix,
+                "export_name": self.aws.export_name,
+                "dataset_name": self.aws.dataset_name,
+                "cur_version": self.aws.cur_version,
+                "export_format": self.aws.export_format,
+                "start_date": self.aws.start_date,
+                "end_date": self.aws.end_date,
+                "reset": self.aws.reset,
+                "access_key_id": self.aws.access_key_id,
+                "secret_access_key": self.aws.secret_access_key,
+                "region": self.aws.region
+            }
+        }
