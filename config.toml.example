@@ -7,9 +7,47 @@ name = "open-finops-stack"
 # Default data directory for DuckDB and other local storage
 data_dir = "./data"
 
+[database]
+# Database backend configuration
+# Options: "duckdb", "snowflake", "bigquery", "postgresql"
+backend = "duckdb"
+
+# DuckDB-specific configuration (default)
+[database.duckdb]
+database_path = "./data/finops.duckdb"
+
+# Snowflake-specific configuration (uncomment to use)
+# [database.snowflake]
+# account = "your-account.snowflakecomputing.com"
+# warehouse = "FINOPS_WH"
+# database = "FINOPS_DB"
+# schema = "AWS_BILLING"
+# user = "finops_user"
+# role = "FINOPS_ROLE"
+# # password via SNOWFLAKE_PASSWORD environment variable
+
+# BigQuery-specific configuration (uncomment to use)
+# [database.bigquery]
+# project_id = "your-gcp-project"
+# dataset = "finops_data"
+# location = "US"
+# # credentials via GOOGLE_APPLICATION_CREDENTIALS environment variable
+
+# PostgreSQL-specific configuration (uncomment to use)
+# [database.postgresql]
+# host = "localhost"
+# port = 5432
+# database = "finops"
+# schema = "aws_billing"
+# user = "finops_user"
+# # password via POSTGRESQL_PASSWORD environment variable
+
 [aws]
 # AWS CUR pipeline configuration
 # All these values can be overridden via command-line flags
+
+# Dataset/schema name for AWS billing data
+dataset_name = "aws_billing"
 
 # Required settings (no defaults)
 # bucket = "your-cur-bucket-name"
