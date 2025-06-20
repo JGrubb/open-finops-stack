@@ -6,7 +6,7 @@ from pathlib import Path
 from datetime import datetime
 
 from core.config import Config
-from core.state import LoadStateTracker
+from core.state_manager import LoadStateManager, LoadStateTracker
 from .pipeline import run_aws_pipeline
 from .manifest import ManifestLocator
 
@@ -69,7 +69,8 @@ def aws_import_cur(args):
             config=config.aws,
             destination=args.destination,
             table_strategy=args.table_strategy,
-            project_config=config.project
+            project_config=config.project,
+            database_config=config.to_dict()  # Pass full config for backend factory
         )
         print("\n✅ Import completed successfully!")
     except Exception as e:
@@ -166,8 +167,8 @@ def aws_show_state(args):
         print("Run 'finops aws import-cur' first to create the database.", file=sys.stderr)
         sys.exit(1)
     
-    # Initialize state tracker
-    state_tracker = LoadStateTracker(str(db_path))
+    # Initialize state manager
+    state_manager = LoadStateManager(config.to_dict())
     
     print(f"Load State for export: {config.aws.export_name}")
     print("=" * 80)
@@ -177,7 +178,7 @@ def aws_show_state(args):
         print(f"\nVersion History for {args.billing_period}:")
         print("-" * 80)
         
-        versions = state_tracker.get_version_history('aws', config.aws.export_name, args.billing_period)
+        versions = state_manager.get_version_history('aws', config.aws.export_name, args.billing_period)
         
         if not versions:
             print(f"No load history found for billing period {args.billing_period}")
@@ -201,7 +202,7 @@ def aws_show_state(args):
         print("\nCurrent Versions:")
         print("-" * 80)
         
-        current_versions = state_tracker.get_current_versions('aws', config.aws.export_name)
+        current_versions = state_manager.get_current_versions('aws', config.aws.export_name)
         
         if not current_versions:
             print("No billing periods loaded yet")
