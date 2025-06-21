@@ -56,7 +56,7 @@ def aws_import_cur(args):
     print(f"  Format: {config.aws.export_format or 'auto-detect'}")
     print(f"  Date Range: {config.aws.start_date or 'all'} to {config.aws.end_date or 'all'}")
     print(f"  Table Strategy: {args.table_strategy}")
-    print(f"  Destination: {args.destination}")
+    print(f"  Destination: {args.destination or 'from backend config'}")
     
     if config.aws.reset:
         print(f"  Reset: YES (will drop existing tables)")
@@ -366,8 +366,7 @@ class AWSCommands:
         )
         import_parser.add_argument(
             '--destination', '-d',
-            default='duckdb',
-            help='DLT destination (default: duckdb)'
+            help='DLT destination (overrides backend config if specified)'
         )
         import_parser.set_defaults(func=aws_import_cur)
         

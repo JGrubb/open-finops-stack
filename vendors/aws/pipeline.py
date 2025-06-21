@@ -410,10 +410,25 @@ def run_aws_pipeline(config: AWSConfig,
     state_manager = LoadStateManager(database_config)
     data_reader = backend.create_data_reader()
     
-    # Create pipeline using backend destination  
+    # Determine destination: use backend destination unless explicitly overridden
+    if destination and hasattr(backend, 'config') and destination != backend.config.backend_type:
+        # User explicitly specified a different destination, use it
+        if destination == "duckdb":
+            pipeline_destination = dlt.destinations.duckdb(credentials="finops.duckdb")
+        else:
+            raise ValueError(f"Destination override '{destination}' not supported yet")
+    else:
+        # Use backend's native destination
+        pipeline_destination = backend.get_dlt_destination()
+    
+    # Show which destination is being used
+    backend_type = database_config.get("database", {}).get("backend", "duckdb")
+    print(f"Using backend: {backend_type}")
+    
+    # Create pipeline using determined destination
     pipeline = dlt.pipeline(
         pipeline_name="finops_pipeline",
-        destination=backend.get_dlt_destination(),
+        destination=pipeline_destination,
         dataset_name=config.dataset_name
     )
     
