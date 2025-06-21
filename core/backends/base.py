@@ -58,6 +58,17 @@ class PostgreSQLConfig(BackendConfig):
     password: Optional[str] = None
 
 
+@dataclass
+class DuckLakeConfig(BackendConfig):
+    """Configuration for DuckLake backend."""
+    backend_type: str = "ducklake"
+    database_path: str = "./data/finops.ducklake"
+    duckdb_path: str = "./data/finops-ducklake.duckdb"
+    compression: str = "zstd"
+    enable_encryption: bool = False
+    partition_strategy: str = "monthly"
+
+
 class DatabaseBackend(ABC):
     """Abstract interface for database operations."""
     

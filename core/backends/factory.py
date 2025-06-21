@@ -55,7 +55,7 @@ def list_available_backends() -> list:
     the registry, then returns the list of available backends.
     """
     # Try to import known backends
-    known_backends = ["duckdb", "snowflake"]
+    known_backends = ["duckdb", "ducklake", "ducklake_dlt", "snowflake"]
     
     for backend_type in known_backends:
         try:
