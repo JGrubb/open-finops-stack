@@ -34,6 +34,15 @@ class DatabaseConfig:
         "database_path": "./data/finops.duckdb"
     })
     
+    # DuckLake-specific settings
+    ducklake: Dict[str, Any] = field(default_factory=lambda: {
+        "database_path": "./data/finops.ducklake",
+        "duckdb_path": "./data/finops-ducklake.duckdb",
+        "compression": "zstd",
+        "enable_encryption": False,
+        "partition_strategy": "monthly"
+    })
+    
     # Snowflake-specific settings  
     snowflake: Dict[str, Any] = field(default_factory=dict)
     

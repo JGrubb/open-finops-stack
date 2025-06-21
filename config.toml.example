@@ -9,12 +9,21 @@ data_dir = "./data"
 
 [database]
 # Database backend configuration
-# Options: "duckdb", "snowflake", "bigquery", "postgresql"
+# Options: "duckdb", "ducklake", "snowflake", "bigquery", "postgresql"
 backend = "duckdb"
 
 # DuckDB-specific configuration (default)
 [database.duckdb]
 database_path = "./data/finops.duckdb"
+
+# DuckLake-specific configuration (uncomment to use)
+# [database.ducklake]
+# database_path = "./data/finops.ducklake"
+# duckdb_path = "./data/finops-ducklake.duckdb"
+# compression = "zstd"
+# enable_encryption = false
+# partition_strategy = "monthly"
+
 
 # Snowflake-specific configuration (uncomment to use)
 # [database.snowflake]
