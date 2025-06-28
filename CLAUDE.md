@@ -237,4 +237,4 @@ With the core pipeline infrastructure complete and enhanced, we're now implement
 - `docs/PODMAN.md` - Deployment guide (to be created)
 
 PS - never add anything about Claude Code to any PRs, issues, or commit messages.
-There is a wrapper command at ./finops and a virtualenv at venv that you should always use.
+There is a wrapper command at ./finops and a virtualenv at .venv that you should always use.

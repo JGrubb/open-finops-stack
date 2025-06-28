@@ -247,15 +247,21 @@ source venv/bin/activate
 pip install -e ./core/ ./vendors/aws/ ./docker/
 ```
 
+# Solution**: Use virtual environment
+```bash
+uv venv
+source .venv/bin/activate
+pip install -e ./core/ ./vendors/aws/ ./docker/
+```
+
 #### Conflicting package versions
 **Solution**: Clean virtual environment
 ```bash
 deactivate
-rm -rf venv
-python -m venv venv
-source venv/bin/activate
+rm -rf .venv
+uv venv
+source .venv/bin/activate
 pip install -e ./core/ ./vendors/aws/ ./docker/
-```
 
 ## 📋 Installation Verification Checklist
 

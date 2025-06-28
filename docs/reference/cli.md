@@ -19,8 +19,8 @@ git clone https://github.com/openfinops/open-finops-stack.git
 cd open-finops-stack
 
 # Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+uv venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
