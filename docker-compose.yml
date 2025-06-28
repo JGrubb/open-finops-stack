@@ -19,6 +19,7 @@ services:
       JAVA_OPTS: "-Xmx4g -Xms1g"
     depends_on:
       - postgres
+      - clickhouse
     volumes:
       - metabase-data:/metabase-data
       - ./data:/data:ro  # Mount our data directory for DuckDB access
@@ -36,6 +37,20 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
 
+  # ClickHouse for FinOps data
+  clickhouse:
+    image: clickhouse/clickhouse-server:23.8
+    container_name: clickhouse
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    environment:
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_PASSWORD=password
+      - CLICKHOUSE_DB=finops
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+
   # DuckDB (for development - will be added when we build the API)
   # duckdb:
   #   build: ./src/api
@@ -48,3 +63,4 @@ services:
 volumes:
   metabase-data:
   postgres-data:
+  clickhouse-data:
