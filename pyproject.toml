@@ -23,6 +23,28 @@ classifiers = [
 ]
 requires-python = ">=3.8"
 keywords = ["finops", "cloud", "costs", "aws", "azure", "gcp", "billing", "focus"]
+dependencies = [
+    "dlt[duckdb]>=0.4.0",
+    "dlt[parquet]>=0.4.0",
+    "boto3>=1.28.0",
+    "toml>=0.10.2",
+    "dlt[clickhouse]>=0.4.0",
+    "clickhouse-connect>=0.7.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-mock>=3.10.0",
+    "black>=22.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.0.0",
+    "mkdocs>=1.4.0",
+    "mkdocs-material>=9.0.0",
+    "ipython>=8.0.0",
+    "jupyter>=1.0.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/JGrubb/open-finops-stack"
