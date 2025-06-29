@@ -30,15 +30,14 @@ fi
 mkdir -p ./data
 mkdir -p ./tmp
 
-# Build the image if it doesn't exist
-if ! podman image inspect finops-pipeline &> /dev/null; then
-    echo "Building FinOps pipeline container image..."
-    podman build -t finops-pipeline .
-fi
+# Build the image
+echo "Building FinOps pipeline container image..."
+podman build -t finops-pipeline .
 
 # Run the command with proper volume mounts and environment variables
 echo "Running: finops $*"
 podman run --rm \
+    --network=open_finops_v3_finops-network \
     -v "$(pwd)/data:/data" \
     -v "$(pwd)/config.toml:/app/config.toml:ro" \
     -v "$(pwd)/tmp:/tmp" \
