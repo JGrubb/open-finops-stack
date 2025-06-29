@@ -27,7 +27,8 @@ def aws_import_cur(args):
         'export_format': args.export_format,
         'start_date': args.start_date,
         'end_date': args.end_date,
-        'reset': args.reset
+        'reset': args.reset,
+        'table_strategy': args.table_strategy
     }
     
     # Remove None values
@@ -55,7 +56,7 @@ def aws_import_cur(args):
     print(f"  CUR Version: {config.aws.cur_version}")
     print(f"  Format: {config.aws.export_format or 'auto-detect'}")
     print(f"  Date Range: {config.aws.start_date or 'all'} to {config.aws.end_date or 'all'}")
-    print(f"  Table Strategy: {args.table_strategy}")
+    print(f"  Table Strategy: {config.aws.table_strategy}")
     print(f"  Destination: {args.destination}")
     
     if config.aws.reset:
