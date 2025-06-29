@@ -23,6 +23,8 @@ services:
     volumes:
       - metabase-data:/metabase-data
       - ./data:/data:ro  # Mount our data directory for DuckDB access
+    networks:
+      - finops-network
 
   # Postgres for Metabase metadata
   postgres:
@@ -36,6 +38,8 @@ services:
       POSTGRES_PASSWORD: metabase
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    networks:
+      - finops-network
 
   # ClickHouse for FinOps data
   clickhouse:
@@ -50,6 +54,8 @@ services:
       - CLICKHOUSE_DB=finops
     volumes:
       - clickhouse-data:/var/lib/clickhouse
+    networks:
+      - finops-network
 
   # DuckDB (for development - will be added when we build the API)
   # duckdb:
@@ -64,3 +70,7 @@ volumes:
   metabase-data:
   postgres-data:
   clickhouse-data:
+
+networks:
+  finops-network:
+    driver: bridge
