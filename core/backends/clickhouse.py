@@ -20,7 +20,8 @@ class ClickHouseConfig(BackendConfig):
 
     backend_type: str = "clickhouse"
     host: str = "localhost"
-    port: int = 8123
+    port: int = 9000  # Native TCP port for DLT
+    http_port: int = 8123  # HTTP port for clickhouse_connect
     database: str = "finops"
     user: str = "default"
     password: Optional[str] = ""
@@ -34,16 +35,19 @@ class ClickHouseBackend(DatabaseBackend):
         self.config = config
         self.client = clickhouse_connect.get_client(
             host=config.host,
-            port=config.port,
+            port=config.http_port,  # Use HTTP port for clickhouse_connect
             user=config.user,
             password=config.password,
             database=config.database,
+            secure=False,  # Disable SSL for HTTP connection
         )
 
     def get_dlt_destination(self) -> Any:
         """Get DLT destination for this backend."""
+        creds = self.config.__dict__.copy()
+        creds['secure'] = False  # Disable SSL for DLT destination too
         return dlt.destinations.clickhouse(
-            credentials=self.config.__dict__,
+            credentials=creds,
             database_name=self.config.database,
         )
 
@@ -69,7 +73,7 @@ class ClickHouseBackend(DatabaseBackend):
     @classmethod
     def from_config(cls, config: Dict[str, Any]) -> "DatabaseBackend":
         """Create backend instance from configuration dictionary."""
-        ch_config = ClickHouseConfig(**config)
+        ch_config = ClickHouseConfig(**config['database']['clickhouse'])
         return cls(ch_config)
 
 
