@@ -7,8 +7,8 @@ import pytest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-from src.core.config import AWSConfig
-from src.pipelines.aws.manifest import ManifestLocator
+from core.config import AWSConfig
+from vendors.aws.manifest import ManifestLocator
 from tests.data.generate_sample_data import create_test_s3_structure
 
 
@@ -34,7 +34,7 @@ class TestAWSPipelineIntegration:
         base_path, manifest_paths = sample_s3_data
         
         # Mock S3 to read from local filesystem
-        with patch('src.pipelines.aws.manifest.boto3.client') as mock_boto_client:
+        with patch('vendors.aws.manifest.boto3.client') as mock_boto_client:
             mock_s3 = MagicMock()
             mock_boto_client.return_value = mock_s3
             
@@ -158,7 +158,7 @@ class TestAWSPipelineIntegration:
         """Test date range filtering works correctly."""
         base_path, manifest_paths = sample_s3_data
         
-        with patch('src.pipelines.aws.manifest.boto3.client') as mock_boto_client:
+        with patch('vendors.aws.manifest.boto3.client') as mock_boto_client:
             mock_s3 = MagicMock()
             mock_boto_client.return_value = mock_s3
             
@@ -202,7 +202,7 @@ class TestAWSPipelineIntegration:
     
     def test_aws_config_validation(self, aws_config):
         """Test AWS configuration validation."""
-        from src.core.config import Config
+        from core.config import Config
         
         config = Config()
         config.aws = aws_config

@@ -5,7 +5,7 @@ import pytest
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 
-from src.pipelines.aws.manifest import ManifestFile, ManifestLocator
+from vendors.aws.manifest import ManifestFile, ManifestLocator
 
 
 class TestManifestFile:

@@ -57,15 +57,16 @@ class DuckDBStateManager(StateManager):
             """)
             
             # Create indexes for common queries
-            conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_current_versions 
-                ON billing_state.load_state(vendor, export_name, current_version)
-            """)
-            
-            conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_billing_period 
-                ON billing_state.load_state(vendor, export_name, billing_period)
-            """)
+            # Temporarily disabled due to DuckDB constraint issues
+            # conn.execute("""
+            #     CREATE INDEX IF NOT EXISTS idx_current_versions 
+            #     ON billing_state.load_state(vendor, export_name, current_version)
+            # """)
+            # 
+            # conn.execute("""
+            #     CREATE INDEX IF NOT EXISTS idx_billing_period 
+            #     ON billing_state.load_state(vendor, export_name, billing_period)
+            # """)
             
         finally:
             conn.close()
@@ -95,20 +96,31 @@ class DuckDBStateManager(StateManager):
         """Record the start of a new data load."""
         conn = duckdb.connect(self.db_path)
         try:
-            # Insert or update the load record
-            conn.execute("""
-                INSERT INTO billing_state.load_state 
-                (vendor, export_name, billing_period, version_id, data_format_version,
-                 load_timestamp, load_completed, file_count)
-                VALUES (?, ?, ?, ?, ?, ?, FALSE, ?)
-                ON CONFLICT (vendor, export_name, billing_period, version_id)
-                DO UPDATE SET 
-                    load_timestamp = EXCLUDED.load_timestamp,
-                    load_completed = FALSE,
-                    file_count = EXCLUDED.file_count,
-                    error_message = NULL
-            """, [vendor, export_name, billing_period, version_id, 
-                  data_format_version, datetime.now(), file_count])
+            # Check if record exists first
+            existing = conn.execute("""
+                SELECT COUNT(*) FROM billing_state.load_state 
+                WHERE vendor = ? AND export_name = ? AND billing_period = ? AND version_id = ?
+            """, [vendor, export_name, billing_period, version_id]).fetchone()[0]
+            
+            if existing > 0:
+                # Update existing record
+                conn.execute("""
+                    UPDATE billing_state.load_state 
+                    SET load_timestamp = ?, 
+                        load_completed = FALSE,
+                        file_count = ?,
+                        error_message = NULL
+                    WHERE vendor = ? AND export_name = ? AND billing_period = ? AND version_id = ?
+                """, [datetime.now(), file_count, vendor, export_name, billing_period, version_id])
+            else:
+                # Insert new record
+                conn.execute("""
+                    INSERT INTO billing_state.load_state 
+                    (vendor, export_name, billing_period, version_id, data_format_version,
+                     load_timestamp, load_completed, file_count)
+                    VALUES (?, ?, ?, ?, ?, ?, FALSE, ?)
+                """, [vendor, export_name, billing_period, version_id, 
+                      data_format_version, datetime.now(), file_count])
             
         finally:
             conn.close()
@@ -118,37 +130,44 @@ class DuckDBStateManager(StateManager):
         """Mark a load as successfully completed and set it as the current version."""
         conn = duckdb.connect(self.db_path)
         try:
-            # Start a transaction
-            conn.begin()
-            
-            # Mark all other versions for this billing period as not current
+            # First, mark all other versions for this billing period as not current
             conn.execute("""
                 UPDATE billing_state.load_state 
                 SET current_version = FALSE
                 WHERE vendor = ? 
                 AND export_name = ? 
                 AND billing_period = ?
-            """, [vendor, export_name, billing_period])
+                AND version_id <> ?
+            """, [vendor, export_name, billing_period, version_id])
             
-            # Mark this load as completed and current
+            # Update load_completed and row_count separately to avoid constraint issues
             conn.execute("""
                 UPDATE billing_state.load_state 
-                SET load_completed = TRUE,
-                    current_version = TRUE,
-                    row_count = ?,
-                    error_message = NULL
+                SET load_completed = TRUE
+                WHERE vendor = ? 
+                AND export_name = ? 
+                AND billing_period = ? 
+                AND version_id = ?
+            """, [vendor, export_name, billing_period, version_id])
+            
+            conn.execute("""
+                UPDATE billing_state.load_state 
+                SET current_version = TRUE
+                WHERE vendor = ? 
+                AND export_name = ? 
+                AND billing_period = ? 
+                AND version_id = ?
+            """, [vendor, export_name, billing_period, version_id])
+            
+            conn.execute("""
+                UPDATE billing_state.load_state 
+                SET row_count = ?
                 WHERE vendor = ? 
                 AND export_name = ? 
                 AND billing_period = ? 
                 AND version_id = ?
             """, [row_count, vendor, export_name, billing_period, version_id])
             
-            # Commit the transaction
-            conn.commit()
-            
-        except Exception as e:
-            conn.rollback()
-            raise e
         finally:
             conn.close()
     

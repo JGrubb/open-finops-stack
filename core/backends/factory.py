@@ -16,6 +16,32 @@ def register_backend(name: str, backend_class):
     BACKEND_REGISTRY[name] = backend_class
 
 
+def get_backend_class(backend_type: str):
+    """Get a backend class from the registry.
+    
+    Args:
+        backend_type: Backend type name (e.g., 'duckdb', 'clickhouse')
+        
+    Returns:
+        Backend class that implements DatabaseBackend
+        
+    Raises:
+        ValueError: If backend type is not registered
+    """
+    # Try to import the backend module to trigger registration
+    try:
+        importlib.import_module(f'core.backends.{backend_type}')
+    except ImportError:
+        # Backend module doesn't exist
+        pass
+    
+    if backend_type not in BACKEND_REGISTRY:
+        available_backends = list(BACKEND_REGISTRY.keys())
+        raise ValueError(f"Backend '{backend_type}' not available. Available backends: {available_backends}")
+    
+    return BACKEND_REGISTRY[backend_type]
+
+
 def create_backend(config: Dict[str, Any]) -> DatabaseBackend:
     """Factory function to create appropriate backend using registry pattern.
     
