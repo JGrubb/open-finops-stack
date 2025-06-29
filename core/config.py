@@ -130,7 +130,8 @@ class Config:
             "export_format": "export_format",
             "start_date": "start_date",
             "end_date": "end_date",
-            "reset": "reset"
+            "reset": "reset",
+            "table_strategy": "table_strategy"
         }
         
         for cli_arg, config_attr in aws_mappings.items():
