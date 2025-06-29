@@ -58,6 +58,19 @@ class PostgreSQLConfig(BackendConfig):
     password: Optional[str] = None
 
 
+@dataclass
+class ClickHouseConfig(BackendConfig):
+    """Configuration for ClickHouse backend."""
+    backend_type: str = "clickhouse"
+    host: str = "localhost"
+    port: int = 9000  # Native TCP port for DLT
+    http_port: int = 8123  # HTTP port for clickhouse_connect
+    database: str = "finops"
+    user: str = "default"
+    password: Optional[str] = ""
+    secure: bool = False
+
+
 class DatabaseBackend(ABC):
     """Abstract interface for database operations."""
     

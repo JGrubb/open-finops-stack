@@ -8,6 +8,7 @@ from pathlib import Path
 
 from .base import DatabaseBackend, StateManager, DataReader, DuckDBConfig, BACKEND_REGISTRY
 from .factory import register_backend
+from core.utils.s3 import S3Utils
 
 
 class DuckDBStateManager(StateManager):
@@ -255,17 +256,11 @@ class DuckDBDataReader(DataReader):
         # Create a temporary DuckDB connection
         conn = duckdb.connect()
         
-        # Install and load the httpfs extension for S3 access
-        conn.execute("INSTALL httpfs")
-        conn.execute("LOAD httpfs")
+        # Setup S3 credentials using common utility
+        S3Utils.setup_duckdb_s3_credentials(conn, aws_creds)
         
-        # Configure AWS credentials for DuckDB
-        conn.execute(f"SET s3_access_key_id='{aws_creds['access_key_id']}'")
-        conn.execute(f"SET s3_secret_access_key='{aws_creds['secret_access_key']}'")
-        conn.execute(f"SET s3_region='{aws_creds.get('region', 'us-east-1')}'")
-        
-        # Read directly from S3 using DuckDB
-        s3_path = f"s3://{bucket}/{key}"
+        # Build S3 path using common utility
+        s3_path = S3Utils.build_s3_path(bucket, key)
         
         try:
             # Handle gzipped files - DuckDB can read them directly
@@ -282,16 +277,8 @@ class DuckDBDataReader(DataReader):
             # Yield records as dictionaries
             for row in result:
                 record = dict(zip(columns, row))
-                # Clean up column names (replace / with _)
-                cleaned_record = {}
-                for col, val in record.items():
-                    # Handle different column naming conventions
-                    if '/' in col:
-                        # Replace / with _ (e.g., "lineItem/UnblendedCost" -> "lineItem_UnblendedCost")
-                        clean_col = col.replace('/', '_')
-                    else:
-                        clean_col = col
-                    cleaned_record[clean_col] = val
+                # Clean up column names using common utility
+                cleaned_record = S3Utils.clean_column_names(record)
                 yield cleaned_record
                 
         finally:
@@ -303,17 +290,11 @@ class DuckDBDataReader(DataReader):
         # Create a temporary DuckDB connection
         conn = duckdb.connect()
         
-        # Install and load the httpfs extension for S3 access
-        conn.execute("INSTALL httpfs")
-        conn.execute("LOAD httpfs")
+        # Setup S3 credentials using common utility
+        S3Utils.setup_duckdb_s3_credentials(conn, aws_creds)
         
-        # Configure AWS credentials for DuckDB
-        conn.execute(f"SET s3_access_key_id='{aws_creds['access_key_id']}'")
-        conn.execute(f"SET s3_secret_access_key='{aws_creds['secret_access_key']}'")
-        conn.execute(f"SET s3_region='{aws_creds.get('region', 'us-east-1')}'")
-        
-        # Read directly from S3 using DuckDB
-        s3_path = f"s3://{bucket}/{key}"
+        # Build S3 path using common utility
+        s3_path = S3Utils.build_s3_path(bucket, key)
         
         try:
             # Query the parquet file directly
@@ -326,16 +307,8 @@ class DuckDBDataReader(DataReader):
             # Yield records as dictionaries
             for row in result:
                 record = dict(zip(columns, row))
-                # Clean up column names (replace / with _)
-                cleaned_record = {}
-                for col, val in record.items():
-                    # Handle different column naming conventions
-                    if '/' in col:
-                        # Replace / with _ (e.g., "lineItem/UnblendedCost" -> "lineItem_UnblendedCost")
-                        clean_col = col.replace('/', '_')
-                    else:
-                        clean_col = col
-                    cleaned_record[clean_col] = val
+                # Clean up column names using common utility
+                cleaned_record = S3Utils.clean_column_names(record)
                 yield cleaned_record
                 
         finally:
