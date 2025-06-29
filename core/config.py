@@ -14,6 +14,7 @@ class AWSConfig:
     prefix: Optional[str] = None
     export_name: Optional[str] = None
     dataset_name: str = "aws_billing"
+    table_strategy: str = "separate"
     cur_version: str = "v1"
     export_format: Optional[str] = None
     start_date: Optional[str] = None
@@ -42,6 +43,9 @@ class DatabaseConfig:
     
     # PostgreSQL-specific settings
     postgresql: Dict[str, Any] = field(default_factory=dict)
+    
+    # ClickHouse-specific settings
+    clickhouse: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -152,12 +156,13 @@ class Config:
                 "data_dir": self.project.data_dir
             },
             "database": {
-                "backend": self.database.backend,
-                "duckdb": self.database.duckdb,
-                "snowflake": self.database.snowflake,
-                "bigquery": self.database.bigquery,
-                "postgresql": self.database.postgresql
-            },
+            "backend": self.database.backend,
+            "duckdb": self.database.duckdb,
+            "snowflake": self.database.snowflake,
+            "bigquery": self.database.bigquery,
+            "postgresql": self.database.postgresql,
+            "clickhouse": self.database.clickhouse
+        },
             "aws": {
                 "bucket": self.aws.bucket,
                 "prefix": self.aws.prefix,
