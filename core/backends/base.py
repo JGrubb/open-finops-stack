@@ -99,6 +99,19 @@ class DatabaseBackend(ABC):
         """Get database path (for file-based) or connection string."""
         pass
     
+    @abstractmethod
+    def get_table_reference(self, dataset_name: str, table_name: str) -> str:
+        """Get the correct table reference for this backend.
+        
+        Args:
+            dataset_name: The dataset/schema name
+            table_name: The table name
+            
+        Returns:
+            The properly formatted table reference for this backend
+        """
+        pass
+    
     @classmethod
     @abstractmethod
     def from_config(cls, config: Dict[str, Any]) -> 'DatabaseBackend':

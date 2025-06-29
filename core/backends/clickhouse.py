@@ -56,6 +56,13 @@ class ClickHouseBackend(DatabaseBackend):
     def get_database_path_or_connection(self) -> str:
         """Get database path or connection string."""
         return f"clickhouse://{self.config.user}@{self.config.host}:{self.config.port}/{self.config.database}"
+    
+    def get_table_reference(self, dataset_name: str, table_name: str) -> str:
+        """Get the correct table reference for ClickHouse.
+        
+        ClickHouse with DLT creates tables as database.dataset___table
+        """
+        return f"{self.config.database}.{dataset_name}___{table_name}"
 
     @classmethod
     def from_config(cls, config: Dict[str, Any]) -> 'ClickHouseBackend':

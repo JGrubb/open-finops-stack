@@ -345,6 +345,13 @@ class DuckDBBackend(DatabaseBackend):
         """Get database path for DuckDB."""
         return self.config.database_path
     
+    def get_table_reference(self, dataset_name: str, table_name: str) -> str:
+        """Get the correct table reference for DuckDB.
+        
+        DuckDB uses schema.table notation
+        """
+        return f"{dataset_name}.{table_name}"
+    
     @classmethod
     def from_config(cls, config: Dict[str, Any]) -> 'DuckDBBackend':
         """Create DuckDB backend from configuration dictionary."""
