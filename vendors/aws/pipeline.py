@@ -16,10 +16,10 @@ from .manifest import ManifestLocator, ManifestFile
 from core.config import AWSConfig
 from core.state_manager import LoadStateManager
 from core.backends.factory import create_backend
-from core.utils import create_table_name, sanitize_table_name
+from core.table_utils import create_table_name, sanitize_table_name
 
 
-def create_unified_view(export_name: str, pipeline) -> None:
+def create_unified_view(export_name: str, pipeline, config: AWSConfig, backend) -> None:
     """Create a unified view that combines all billing periods for an export.
     
     This view automatically handles schema evolution by using DuckDB's 
@@ -35,7 +35,7 @@ def create_unified_view(export_name: str, pipeline) -> None:
             tables_result = client.execute_sql(f"""
                 SELECT table_name 
                 FROM information_schema.tables 
-                WHERE table_schema = 'aws_billing' 
+                WHERE table_schema = '{config.dataset_name}' 
                 AND table_name LIKE '{clean_export}_%'
                 AND table_name NOT LIKE '%_unified'
                 ORDER BY table_name
@@ -50,7 +50,7 @@ def create_unified_view(export_name: str, pipeline) -> None:
             # Build simple union query - let the existing date columns handle periods
             table_queries = []
             for (table_name,) in tables_result:
-                table_queries.append(f"SELECT * FROM aws_billing.{table_name}")
+                table_queries.append(f"SELECT * FROM {config.dataset_name}.{table_name}")
                 print(f"  - {table_name}")
             
             if table_queries:
@@ -59,19 +59,20 @@ def create_unified_view(export_name: str, pipeline) -> None:
                 union_query = " UNION BY NAME ".join(table_queries)
                 
                 create_view_sql = f"""
-                    CREATE OR REPLACE VIEW aws_billing.{view_name} AS
+                    CREATE OR REPLACE VIEW {config.dataset_name}.{view_name} AS
                     {union_query}
                 """
                 
                 client.execute_sql(create_view_sql)
                 
-                # Get row count from the view
-                count_result = client.execute_sql(f"SELECT COUNT(*) FROM aws_billing.{view_name}")
+                # Get row count from the view using backend-specific table reference
+                view_ref = backend.get_table_reference(config.dataset_name, view_name)
+                count_result = client.execute_sql(f"SELECT COUNT(*) FROM {view_ref}")
                 total_rows = count_result[0][0] if count_result else 0
                 
-                print(f"✓ Created unified view: aws_billing.{view_name}")
+                print(f"✓ Created unified view: {config.dataset_name}.{view_name}")
                 print(f"  Total rows: {total_rows:,}")
-                print(f"  Query: SELECT * FROM aws_billing.{view_name} WHERE lineItem_UsageStartDate >= '2024-01-01'")
+                print(f"  Query: SELECT * FROM {config.dataset_name}.{view_name} WHERE lineItem_UsageStartDate >= '2024-01-01'")
             
     except Exception as e:
         print(f"Failed to create unified view: {e}")
@@ -469,22 +470,21 @@ def run_aws_pipeline(config: AWSConfig,
             
             try:
                 # Delete existing data for this billing period
-                if destination == "duckdb":
-                    with pipeline.sql_client() as client:
-                        # Check if table exists
-                        tables = client.execute_sql(
-                            "SELECT table_name FROM information_schema.tables "
-                            "WHERE table_schema = 'aws_billing' AND table_name = 'billing_data'"
-                        )
-                        
-                        if tables:
-                            # Delete data for this billing period
-                            delete_sql = f"""
-                            DELETE FROM aws_billing.billing_data 
-                            WHERE billing_period = '{manifest.billing_period}'
-                            """
-                            client.execute_sql(delete_sql)
-                            print(f"  Deleted existing data for {manifest.billing_period}")
+                with pipeline.sql_client() as client:
+                    # Check if table exists
+                    tables = client.execute_sql(
+                        "SELECT table_name FROM information_schema.tables "
+                        f"WHERE table_schema = '{config.dataset_name}' AND table_name = 'billing_data'"
+                    )
+                    
+                    if tables:
+                        # Delete data for this billing period
+                        delete_sql = f"""
+                        DELETE FROM {config.dataset_name}.billing_data 
+                        WHERE billing_period = '{manifest.billing_period}'
+                        """
+                        client.execute_sql(delete_sql)
+                        print(f"  Deleted existing data for {manifest.billing_period}")
                 
                 # Load new data for this billing period
                 load_info = pipeline.run(
@@ -499,7 +499,9 @@ def run_aws_pipeline(config: AWSConfig,
                 row_count = 0
                 try:
                     with pipeline.sql_client() as client:
-                        result = client.execute_sql(f"SELECT COUNT(*) FROM billing_data WHERE billing_period = '{manifest.billing_period}'")
+                        # Use backend-specific table reference
+                        table_ref = backend.get_table_reference(config.dataset_name, "billing_data")
+                        result = client.execute_sql(f"SELECT COUNT(*) FROM {table_ref} WHERE billing_period = '{manifest.billing_period}'")
                         row_count = result[0][0] if result else 0
                         print(f"  Loaded {row_count:,} rows")
                 except Exception as e:
@@ -606,7 +608,9 @@ def run_aws_pipeline(config: AWSConfig,
                 row_count = 0
                 try:
                     with pipeline.sql_client() as client:
-                        result = client.execute_sql(f"SELECT COUNT(*) FROM aws_billing.{table_name}")
+                        # Use backend-specific table reference
+                        table_ref = backend.get_table_reference(config.dataset_name, table_name)
+                        result = client.execute_sql(f"SELECT COUNT(*) FROM {table_ref}")
                         row_count = result[0][0] if result else 0
                         print(f"  ✓ Loaded {row_count:,} rows")
                 except Exception as e:
@@ -643,19 +647,19 @@ def run_aws_pipeline(config: AWSConfig,
             with pipeline.sql_client() as client:
                 # Get list of billing tables for this export
                 # We need to match tables that contain the sanitized export name
-                from core.utils import sanitize_table_name
                 clean_export = sanitize_table_name(config.export_name)
                 
                 tables_result = client.execute_sql(
                     "SELECT table_name FROM information_schema.tables "
-                    f"WHERE table_schema = 'aws_billing' AND table_name LIKE '{clean_export}_%' "
+                    f"WHERE table_schema = '{config.dataset_name}' AND table_name LIKE '{clean_export}_%' "
                     "ORDER BY table_name"
                 )
                 
                 print("\nAll billing tables:")
                 for table_row in tables_result:
                     table_name = table_row[0]
-                    count_result = client.execute_sql(f"SELECT COUNT(*) FROM aws_billing.{table_name}")
+                    table_ref = backend.get_table_reference(config.dataset_name, table_name)
+                    count_result = client.execute_sql(f"SELECT COUNT(*) FROM {table_ref}")
                     rows = count_result[0][0] if count_result else 0
                     total_rows += rows
                     
@@ -685,4 +689,4 @@ def run_aws_pipeline(config: AWSConfig,
         print("\n" + "="*50)
         print("CREATING UNIFIED VIEW")
         print("="*50)
-        create_unified_view(config.export_name, pipeline)
+        create_unified_view(config.export_name, pipeline, config, backend)
