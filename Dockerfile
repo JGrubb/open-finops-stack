@@ -15,7 +15,8 @@ COPY requirements.txt requirements-dev.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy source code
-COPY src/ ./src/
+COPY core/ ./core/
+COPY vendors/ ./vendors/
 COPY finops ./finops
 COPY pytest.ini ./
 
@@ -27,7 +28,7 @@ ENV PYTHONPATH=/app
 ENV OPEN_FINOPS_DATA_DIR=/data
 
 # Default command runs the CLI
-ENTRYPOINT ["python", "-m", "src.cli.main"]
+ENTRYPOINT ["python", "-m", "core.cli.main"]
 CMD ["--help"]
 
 # Labels for better Docker Hub integration
