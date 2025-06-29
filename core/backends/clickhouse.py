@@ -9,23 +9,11 @@ from core.backends.base import (
     DatabaseBackend,
     StateManager,
     DataReader,
-    BackendConfig,
+    ClickHouseConfig,
     BACKEND_REGISTRY,
 )
 
 
-@dataclass
-class ClickHouseConfig(BackendConfig):
-    """Configuration for ClickHouse backend."""
-
-    backend_type: str = "clickhouse"
-    host: str = "localhost"
-    port: int = 9000  # Native TCP port for DLT
-    http_port: int = 8123  # HTTP port for clickhouse_connect
-    database: str = "finops"
-    user: str = "default"
-    password: Optional[str] = ""
-    # Add any other ClickHouse-specific parameters here
 
 
 class ClickHouseBackend(DatabaseBackend):
@@ -55,12 +43,11 @@ class ClickHouseBackend(DatabaseBackend):
         """Create state management instance."""
         return ClickHouseStateManager(self.client, self.config.database)
 
-    def create_data_reader(self) -> "DataReader":
+    def create_data_reader(self) -> Optional["DataReader"]:
         """Create data reader for S3 files."""
-        # For now, we can reuse a generic or DuckDB reader if applicable
-        # or implement a ClickHouse-specific one if needed.
-        # This part might need adjustment based on how data is loaded.
-        return None  # Placeholder
+        # ClickHouse uses S3 table functions for direct loading,
+        # not Python-based reading. Return None to trigger fallback.
+        return None
 
     def supports_native_s3(self) -> bool:
         """Whether backend can read directly from S3."""
@@ -71,9 +58,21 @@ class ClickHouseBackend(DatabaseBackend):
         return f"clickhouse://{self.config.user}@{self.config.host}:{self.config.port}/{self.config.database}"
 
     @classmethod
-    def from_config(cls, config: Dict[str, Any]) -> "DatabaseBackend":
+    def from_config(cls, config: Dict[str, Any]) -> 'ClickHouseBackend':
         """Create backend instance from configuration dictionary."""
-        ch_config = ClickHouseConfig(**config['database']['clickhouse'])
+        database_config = config.get("database", {})
+        clickhouse_config = database_config.get("clickhouse", {})
+        
+        ch_config = ClickHouseConfig(
+            host=clickhouse_config.get("host", "localhost"),
+            port=clickhouse_config.get("port", 9000),
+            http_port=clickhouse_config.get("http_port", 8123),
+            database=clickhouse_config.get("database", "finops"),
+            user=clickhouse_config.get("user", "default"),
+            password=clickhouse_config.get("password", ""),
+            secure=clickhouse_config.get("secure", False)
+        )
+        
         return cls(ch_config)
 
 
@@ -161,34 +160,41 @@ class ClickHouseStateManager(StateManager):
         self, vendor: str, export_name: str, billing_period: str, version_id: str, row_count: int
     ) -> None:
         """Mark a load as successfully completed and set it as the current version."""
-        # Set previous versions to not current
-        update_query = f"""
-        ALTER TABLE {self.database}.{self.table_name}
-        UPDATE is_current = 0
-        WHERE vendor = %(vendor)s
-          AND export_name = %(export_name)s
-          AND billing_period = %(billing_period)s
-          AND is_current = 1
-        """
-        params = {
-            "vendor": vendor,
-            "export_name": export_name,
-            "billing_period": billing_period,
-        }
-        self.client.command(update_query, parameters=params)
+        try:
+            # Step 1: Update previous versions to not current
+            update_query = f"""
+            ALTER TABLE {self.database}.{self.table_name}
+            UPDATE is_current = 0
+            WHERE vendor = %(vendor)s
+              AND export_name = %(export_name)s
+              AND billing_period = %(billing_period)s
+              AND is_current = 1
+            """
+            params = {
+                "vendor": vendor,
+                "export_name": export_name,
+                "billing_period": billing_period,
+            }
+            self.client.command(update_query, parameters=params)
 
-        # Mark current load as completed and current
-        complete_query = f"""
-        ALTER TABLE {self.database}.{self.table_name}
-        UPDATE status = 'completed', completed_at = now(), row_count = %(row_count)s, is_current = 1
-        WHERE vendor = %(vendor)s
-          AND export_name = %(export_name)s
-          AND billing_period = %(billing_period)s
-          AND version_id = %(version_id)s
-        """
-        params["row_count"] = row_count
-        params["version_id"] = version_id
-        self.client.command(complete_query, parameters=params)
+            # Step 2: Mark current load as completed and current
+            complete_query = f"""
+            ALTER TABLE {self.database}.{self.table_name}
+            UPDATE status = 'completed', completed_at = now(), row_count = %(row_count)s, is_current = 1
+            WHERE vendor = %(vendor)s
+              AND export_name = %(export_name)s
+              AND billing_period = %(billing_period)s
+              AND version_id = %(version_id)s
+            """
+            params["row_count"] = row_count
+            params["version_id"] = version_id
+            self.client.command(complete_query, parameters=params)
+            
+        except Exception as e:
+            # Log error and re-raise with context
+            error_msg = f"Failed to complete load for {vendor}/{export_name}/{billing_period}: {e}"
+            print(f"ERROR: {error_msg}")
+            raise RuntimeError(error_msg) from e
 
     def fail_load(
         self,
@@ -221,7 +227,8 @@ class ClickHouseStateManager(StateManager):
     ) -> List[Dict[str, Any]]:
         """Get all current versions for a vendor and export."""
         query = f"""
-        SELECT * FROM {self.database}.{self.table_name}
+        SELECT billing_period, version_id, data_format_version, started_at, row_count, file_count
+        FROM {self.database}.{self.table_name}
         WHERE vendor = %(vendor)s
           AND export_name = %(export_name)s
           AND is_current = 1
@@ -229,14 +236,27 @@ class ClickHouseStateManager(StateManager):
         """
         params = {"vendor": vendor, "export_name": export_name}
         result = self.client.query(query, parameters=params)
-        return result.result_set
+        
+        return [
+            {
+                'billing_period': row[0],
+                'version_id': row[1],
+                'data_format_version': row[2],
+                'load_timestamp': row[3],
+                'row_count': row[4],
+                'file_count': row[5]
+            }
+            for row in result.result_rows
+        ]
 
     def get_version_history(
         self, vendor: str, export_name: str, billing_period: str
     ) -> List[Dict[str, Any]]:
         """Get the version history for a specific billing period."""
         query = f"""
-        SELECT * FROM {self.database}.{self.table_name}
+        SELECT version_id, data_format_version, is_current, started_at, 
+               completed_at, row_count, file_count, error_message, status
+        FROM {self.database}.{self.table_name}
         WHERE vendor = %(vendor)s
           AND export_name = %(export_name)s
           AND billing_period = %(billing_period)s
@@ -248,30 +268,22 @@ class ClickHouseStateManager(StateManager):
             "billing_period": billing_period,
         }
         result = self.client.query(query, parameters=params)
-        return result.result_set
+        
+        return [
+            {
+                'version_id': row[0],
+                'data_format_version': row[1],
+                'current_version': bool(row[2]),
+                'load_timestamp': row[3],
+                'load_completed': row[4] is not None,
+                'row_count': row[5] or 0,
+                'file_count': row[6] or 0,
+                'error_message': row[7] or ''
+            }
+            for row in result.result_rows
+        ]
 
 
-class ClickHouseDataReader(DataReader):
-    """Data reader for ClickHouse.
-    This is a placeholder, as ClickHouse's S3 table function
-    is likely the more direct and efficient way to load data.
-    """
-
-    def read_csv_file(
-        self, bucket: str, key: str, aws_creds: Dict[str, Any]
-    ) -> Iterator[Dict[str, Any]]:
-        """Not implemented for ClickHouse direct loading."""
-        raise NotImplementedError(
-            "Direct reading via Python is less efficient. Use ClickHouse S3 functions."
-        )
-
-    def read_parquet_file(
-        self, bucket: str, key:str, aws_creds: Dict[str, Any]
-    ) -> Iterator[Dict[str, Any]]:
-        """Not implemented for ClickHouse direct loading."""
-        raise NotImplementedError(
-            "Direct reading via Python is less efficient. Use ClickHouse S3 functions."
-        )
 
 
 # Register the backend
