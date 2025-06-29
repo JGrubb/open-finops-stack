@@ -35,7 +35,7 @@ def main():
     # Check if we're in a virtual environment
     if not hasattr(sys, 'real_prefix') and not (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix):
         print("⚠️  Warning: Not running in a virtual environment")
-        print("   Consider running: python -m venv venv && source venv/bin/activate")
+        print("   Consider running: uv venv && source .venv/bin/activate")
     
     all_passed = True
     

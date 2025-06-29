@@ -68,8 +68,7 @@ For development work or if you prefer Python environments:
 
 2. **Install dependencies**
    ```bash
-   pip install -r requirements.txt
-   pip install -r requirements-dev.txt  # For development
+   uv pip sync requirements.txt requirements-dev.txt
    ```
 
 3. **Configure and test**
