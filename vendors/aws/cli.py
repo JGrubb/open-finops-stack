@@ -68,7 +68,7 @@ def aws_import_cur(args):
         run_aws_pipeline(
             config=config.aws,
             destination=args.destination,
-            table_strategy=args.table_strategy,
+            table_strategy=config.aws.table_strategy,
             project_config=config.project,
             database_config=config.to_dict()  # Pass full config for backend factory
         )
