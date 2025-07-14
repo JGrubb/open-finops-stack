@@ -31,6 +31,11 @@ def aws_import_cur(args):
         'table_strategy': args.table_strategy
     }
     
+    # Override database backend if specified via CLI
+    if hasattr(args, 'destination') and args.destination != 'duckdb':
+        # CLI override for destination
+        config.database.backend = args.destination
+    
     # Remove None values
     cli_args = {k: v for k, v in cli_args.items() if v is not None}
     
@@ -57,7 +62,7 @@ def aws_import_cur(args):
     print(f"  Format: {config.aws.export_format or 'auto-detect'}")
     print(f"  Date Range: {config.aws.start_date or 'all'} to {config.aws.end_date or 'all'}")
     print(f"  Table Strategy: {config.aws.table_strategy}")
-    print(f"  Destination: {args.destination}")
+    print(f"  Destination: {config.database.backend}")
     
     if config.aws.reset:
         print(f"  Reset: YES (will drop existing tables)")
@@ -68,7 +73,7 @@ def aws_import_cur(args):
     try:
         run_aws_pipeline(
             config=config.aws,
-            destination=args.destination,
+            destination=config.database.backend,
             table_strategy=config.aws.table_strategy,
             project_config=config.project,
             database_config=config.to_dict()  # Pass full config for backend factory
