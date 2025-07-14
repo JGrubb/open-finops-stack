@@ -77,7 +77,7 @@ For development work or if you prefer Python environments:
    # Edit config.toml with your settings
    
    # Test installation
-   python -m src.cli.main aws list-manifests
+   python -m core.cli.main aws list-manifests
    ```
 
 ## Verification
@@ -100,7 +100,7 @@ curl http://localhost:3000/api/health
 python run_tests.py
 
 # Test CLI
-python -m src.cli.main aws list-manifests
+python -m core.cli.main aws list-manifests
 
 # Check database
 ls -la data/finops.duckdb
