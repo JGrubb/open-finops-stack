@@ -35,7 +35,7 @@ cur_version = "v1"  # or "v2"
 ./finops-docker.sh aws import-cur
 
 # OR Python method
-python -m src.cli.main aws import-cur
+python -m core.cli.main aws import-cur
 ```
 
 You should see output like:

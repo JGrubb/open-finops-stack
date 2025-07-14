@@ -16,6 +16,36 @@ def register_backend(name: str, backend_class):
     BACKEND_REGISTRY[name] = backend_class
 
 
+def _try_import_backend(backend_type: str) -> None:
+    """Try to import a backend module to trigger registration."""
+    try:
+        importlib.import_module(f'core.backends.{backend_type}')
+    except ImportError:
+        # Backend module doesn't exist or has missing dependencies
+        pass
+
+
+def get_backend_class(backend_type: str):
+    """Get a backend class from the registry.
+    
+    Args:
+        backend_type: Backend type name (e.g., 'duckdb', 'clickhouse')
+        
+    Returns:
+        Backend class that implements DatabaseBackend
+        
+    Raises:
+        ValueError: If backend type is not registered
+    """
+    _try_import_backend(backend_type)
+    
+    if backend_type not in BACKEND_REGISTRY:
+        available_backends = list(BACKEND_REGISTRY.keys())
+        raise ValueError(f"Backend '{backend_type}' not available. Available backends: {available_backends}")
+    
+    return BACKEND_REGISTRY[backend_type]
+
+
 def create_backend(config: Dict[str, Any]) -> DatabaseBackend:
     """Factory function to create appropriate backend using registry pattern.
     
@@ -31,20 +61,8 @@ def create_backend(config: Dict[str, Any]) -> DatabaseBackend:
     database_config = config.get("database", {})
     backend_type = database_config.get("backend", "duckdb")
     
-    # Try to import the backend module to trigger registration
-    try:
-        importlib.import_module(f'core.backends.{backend_type}')
-    except ImportError:
-        # Backend module doesn't exist
-        pass
-    
-    # Check if backend is registered
-    if backend_type not in BACKEND_REGISTRY:
-        available_backends = list(BACKEND_REGISTRY.keys())
-        raise ValueError(f"Backend '{backend_type}' not available. Available backends: {available_backends}")
-    
-    # Create backend instance using the registered class
-    backend_class = BACKEND_REGISTRY[backend_type]
+    # Get the backend class (imports if needed)
+    backend_class = get_backend_class(backend_type)
     return backend_class.from_config(config)
 
 
@@ -58,10 +76,6 @@ def list_available_backends() -> list:
     known_backends = ["duckdb", "ducklake", "snowflake", "clickhouse"]
     
     for backend_type in known_backends:
-        try:
-            importlib.import_module(f'core.backends.{backend_type}')
-        except ImportError:
-            # Backend not available (missing dependencies, etc.)
-            continue
+        _try_import_backend(backend_type)
     
     return list(BACKEND_REGISTRY.keys())

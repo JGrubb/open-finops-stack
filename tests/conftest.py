@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 import shutil
 
-from src.core.config import Config, AWSConfig
+from core.config import Config, AWSConfig
 
 
 @pytest.fixture

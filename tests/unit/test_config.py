@@ -4,7 +4,7 @@ import os
 import pytest
 from pathlib import Path
 
-from src.core.config import Config, AWSConfig, ProjectConfig
+from core.config import Config, AWSConfig, ProjectConfig
 
 
 class TestConfig:

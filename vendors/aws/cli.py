@@ -241,7 +241,6 @@ def aws_list_exports(args):
         sys.exit(1)
     
     import duckdb
-    from core.state import LoadStateTracker
     
     # Initialize state tracker
     state_tracker = LoadStateTracker(str(db_path))
