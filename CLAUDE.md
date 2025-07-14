@@ -1,6 +1,70 @@
-# CLAUDE.md
+# Development Partnership
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+We're building production-quality code together. Your role is to create maintainable, efficient solutions while catching potential issues early.
+
+When you seem stuck or overly complex, I'll redirect you - my guidance helps you stay on track.
+
+## CRITICAL WORKFLOW - ALWAYS FOLLOW THIS!
+
+### Research → Plan → Implement
+**NEVER JUMP STRAIGHT TO CODING!** Always follow this sequence:
+1. **Research**: Explore the codebase, understand existing patterns
+2. **Plan**: Create a detailed implementation plan and verify it with me  
+3. **Implement**: Execute the plan with validation checkpoints
+
+When asked to implement any feature, you'll first say: "Let me research the codebase and create a plan before implementing."
+
+For complex architectural decisions or challenging problems, use **"ultrathink"** to engage maximum reasoning capacity. Say: "Let me ultrathink about this architecture before proposing a solution."
+
+### USE MULTIPLE AGENTS!
+*Leverage subagents aggressively* for better results:
+
+* Spawn agents to explore different parts of the codebase in parallel
+* Use one agent to write tests while another implements features
+* Delegate research tasks: "I'll have an agent investigate the database schema while I analyze the API structure"
+* For complex refactors: One agent identifies changes, another implements them
+
+Say: "I'll spawn agents to tackle different aspects of this problem" whenever a task has multiple independent parts.
+
+## Working Memory Management
+
+### When context gets long:
+- Re-read this CLAUDE.md file
+- Summarize progress in a PROGRESS.md file
+- Document current state before major changes
+
+## Problem-Solving Together
+
+When you're stuck or confused:
+1. **Stop** - Don't spiral into complex solutions
+2. **Delegate** - Consider spawning agents for parallel investigation
+3. **Ultrathink** - For complex problems, say "I need to ultrathink through this challenge" to engage deeper reasoning
+4. **Step back** - Re-read the requirements
+5. **Simplify** - The simple solution is usually correct
+6. **Ask** - "I see two approaches: [A] vs [B]. Which do you prefer?"
+
+My insights on better approaches are valued - please ask for them!
+
+## Communication Protocol
+
+### Progress Updates:
+```
+✓ Implemented authentication (all tests passing)
+✓ Added rate limiting  
+✗ Found issue with token expiration - investigating
+```
+
+### Suggesting Improvements:
+"The current approach works, but I notice [observation].
+Would you like me to [specific improvement]?"
+
+## Working Together
+
+- This is always a feature branch - no backwards compatibility needed
+- When in doubt, we choose clarity over cleverness
+- **REMINDER**: If this file hasn't been referenced in 30+ minutes, RE-READ IT!
+
+Avoid complex abstractions or "clever" code. The simple, obvious solution is probably better, and my guidance helps you stay focused on what matters.
 
 ## Project Mission
 
@@ -65,9 +129,28 @@ The project is being built in public through a blog series on The FinOperator bl
   - Custom dashboard creation guides (#24)
   - Multi-cloud dashboard templates (#25)
 
+### ⏳ AWS Commitment Pipelines (PLANNED)
+- **Issues**: #38, #39, #40
+- **Milestone**: AWS Commitment Pipelines
+- **Focus**: 
+  - AWS Reserved Instance utilization and cost tracking
+  - AWS Savings Plans analysis and optimization
+  - AWS Spot Instance cost attribution and reporting
+  - Integration with existing AWS CUR pipeline
+
+### ⏳ GCP BigQuery Billing Pipeline (PLANNED)
+- **Issues**: #49, #50, #51, #52, #53
+- **Milestone**: GCP Billing
+- **Focus**: 
+  - GCP BigQuery billing export integration
+  - Service account JSON authentication
+  - Incremental loading with partition-based watermarks
+  - Multi-cloud data architecture in DuckDB
+  - CLI commands: `finops gcp import-billing`
+
 ### ⏳ Phase 4: Multi-Cloud Support (PLANNED)
 - **Issue**: #20 
-- **Focus**: Azure and GCP integration
+- **Focus**: Azure integration and multi-cloud transformations
 
 ### ⏳ Phase 5: Production Features & Transformations (PLANNED)
 - **Issue**: #21
@@ -100,6 +183,9 @@ All data models are designed around FOCUS (FinOps Open Cost and Usage Specificat
 │   ├── pipelines/aws/        # AWS CUR pipeline implementation ✅
 │   ├── cli/main.py          # Command-line interface ✅
 │   └── core/config.py       # Configuration management ✅
+├── vendors/                  # Cloud vendor-specific pipelines ⏳
+│   ├── aws/                  # AWS commitment pipelines (RI, SP, Spot) ⏳
+│   └── gcp/                  # GCP BigQuery billing pipeline ⏳
 ├── transformations/          # dbt FOCUS conversions ⏳
 │   ├── aws/                  # AWS CUR → FOCUS ⏳
 │   ├── azure/                # Azure → FOCUS ⏳
@@ -171,7 +257,9 @@ cd tests && python compare_data.py
 
 **Centralized Database**: All data flows into a single `./data/finops.duckdb` database
 - **AWS Billing Tables**: `aws_billing.billing_YYYY_MM` (separate tables per month)
-- **Schema**: Native AWS CUR format, ready for FOCUS transformations
+- **AWS Commitment Tables**: `aws_commitments.*` (RI, SP, Spot data) ⏳
+- **GCP Billing Tables**: `gcp_billing.billing_data` (partitioned by date) ⏳
+- **Schema**: Native cloud formats, ready for FOCUS transformations
 - **Access**: Both CLI and Metabase connect to the same database
 - **Performance**: Optimized for analytical queries with DuckDB
 
@@ -188,11 +276,19 @@ bucket = "your-cur-bucket"
 prefix = "your-prefix"
 export_name = "your-export-name"
 cur_version = "v1"  # or "v2"
+
+[gcp]
+project_id = "your-project-id"
+dataset = "your-billing-dataset"  
+table = "your-billing-table"
+service_account_path = "path/to/service-account.json"
 ```
 
 **Environment Variables**:
 - `OPEN_FINOPS_AWS_BUCKET`, `OPEN_FINOPS_AWS_PREFIX`, etc.
 - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`
+- `OPEN_FINOPS_GCP_PROJECT_ID`, `OPEN_FINOPS_GCP_DATASET`, etc.
+- `GOOGLE_APPLICATION_CREDENTIALS` (for service account auth)
 
 ## Testing Framework ✅
 
