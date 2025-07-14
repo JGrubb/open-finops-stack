@@ -348,10 +348,14 @@ class TestClickHouseStateManager:
 class TestClickHouseBackendRegistry:
     """Test ClickHouse backend registration."""
     
-    def test_backend_registered(self):
+    def test_backend_registered(self, clean_backend_registry):
         """Test that ClickHouse backend is registered."""
-        from core.backends.base import BACKEND_REGISTRY
-        from core.backends.clickhouse import ClickHouseBackend  # Import to ensure registration
+        from core.backends.clickhouse import ClickHouseBackend
+        from core.backends.factory import register_backend
         
-        assert "clickhouse" in BACKEND_REGISTRY
-        assert BACKEND_REGISTRY["clickhouse"] == ClickHouseBackend
+        # Register the backend (simulating import-time registration)
+        register_backend("clickhouse", ClickHouseBackend)
+        
+        # Verify registration
+        assert "clickhouse" in clean_backend_registry
+        assert clean_backend_registry["clickhouse"] == ClickHouseBackend

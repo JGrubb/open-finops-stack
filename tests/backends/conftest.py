@@ -243,3 +243,21 @@ class MockS3Utils:
 def mock_s3_utils():
     """Provide mock S3 utilities."""
     return MockS3Utils
+
+
+@pytest.fixture
+def clean_backend_registry():
+    """Provide a clean backend registry for testing."""
+    from core.backends.base import BACKEND_REGISTRY
+    
+    # Save original registry
+    original_registry = BACKEND_REGISTRY.copy()
+    
+    # Clear for test
+    BACKEND_REGISTRY.clear()
+    
+    yield BACKEND_REGISTRY
+    
+    # Restore original registry
+    BACKEND_REGISTRY.clear()
+    BACKEND_REGISTRY.update(original_registry)

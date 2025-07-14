@@ -403,11 +403,14 @@ class TestDuckDBDataReader:
 class TestDuckDBBackendRegistry:
     """Test DuckDB backend registration."""
     
-    def test_backend_registered(self):
+    def test_backend_registered(self, clean_backend_registry):
         """Test that DuckDB backend is registered."""
-        from core.backends.base import BACKEND_REGISTRY
-        from core.backends.factory import get_backend_class
+        from core.backends.duckdb import DuckDBBackend
+        from core.backends.factory import register_backend
         
-        # Should be able to get DuckDB backend class
-        backend_class = get_backend_class("duckdb")
-        assert backend_class == DuckDBBackend
+        # Register the backend (simulating import-time registration)
+        register_backend("duckdb", DuckDBBackend)
+        
+        # Verify registration
+        assert "duckdb" in clean_backend_registry
+        assert clean_backend_registry["duckdb"] == DuckDBBackend

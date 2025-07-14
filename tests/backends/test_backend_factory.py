@@ -220,23 +220,32 @@ class TestListAvailableBackends:
     @patch('importlib.import_module')
     def test_list_available_backends_auto_discovery(self, mock_import):
         """Test automatic discovery of backends."""
-        def mock_import_side_effect(module_name):
-            if module_name == 'core.backends.duckdb':
-                register_backend("duckdb", MockBackend)
-            elif module_name == 'core.backends.clickhouse':
-                register_backend("clickhouse", MockBackend)
-            elif module_name in ['core.backends.ducklake', 'core.backends.snowflake']:
-                raise ImportError("Module not available")
-            return Mock()
+        # Save and clear the registry for this test
+        original_registry = BACKEND_REGISTRY.copy()
+        BACKEND_REGISTRY.clear()
         
-        mock_import.side_effect = mock_import_side_effect
-        
-        backends = list_available_backends()
-        
-        assert "duckdb" in backends
-        assert "clickhouse" in backends
-        assert "ducklake" not in backends  # Import failed
-        assert "snowflake" not in backends  # Import failed
+        try:
+            def mock_import_side_effect(module_name):
+                if module_name == 'core.backends.duckdb':
+                    register_backend("duckdb", MockBackend)
+                elif module_name == 'core.backends.clickhouse':
+                    register_backend("clickhouse", MockBackend)
+                elif module_name in ['core.backends.ducklake', 'core.backends.snowflake']:
+                    raise ImportError("Module not available")
+                return Mock()
+            
+            mock_import.side_effect = mock_import_side_effect
+            
+            backends = list_available_backends()
+            
+            assert "duckdb" in backends
+            assert "clickhouse" in backends
+            assert "ducklake" not in backends  # Import failed
+            assert "snowflake" not in backends  # Import failed
+        finally:
+            # Restore original registry
+            BACKEND_REGISTRY.clear()
+            BACKEND_REGISTRY.update(original_registry)
         
         # Verify all known backends were attempted
         expected_calls = [
