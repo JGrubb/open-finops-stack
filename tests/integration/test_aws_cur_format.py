@@ -7,8 +7,8 @@ import pytest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-from src.core.config import AWSConfig
-from src.pipelines.aws.manifest import ManifestLocator
+from core.config import AWSConfig
+from vendors.aws.manifest import ManifestLocator
 from tests.data.generate_aws_cur_data import create_aws_cur_test_structure
 
 
@@ -271,7 +271,7 @@ class TestAWSCURFormat:
         base_path, manifest_paths = aws_cur_sample_data
         
         # Mock S3 to read from local filesystem
-        with patch('src.pipelines.aws.manifest.boto3.client') as mock_boto_client:
+        with patch('vendors.aws.manifest.boto3.client') as mock_boto_client:
             mock_s3 = MagicMock()
             mock_boto_client.return_value = mock_s3
             
