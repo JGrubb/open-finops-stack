@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from typing import Any, Dict, Optional
 import toml
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 
 
 @dataclass
@@ -151,31 +151,4 @@ class Config:
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert configuration to dictionary format for backend factory."""
-        return {
-            "project": {
-                "name": self.project.name,
-                "data_dir": self.project.data_dir
-            },
-            "database": {
-            "backend": self.database.backend,
-            "duckdb": self.database.duckdb,
-            "snowflake": self.database.snowflake,
-            "bigquery": self.database.bigquery,
-            "postgresql": self.database.postgresql,
-            "clickhouse": self.database.clickhouse
-        },
-            "aws": {
-                "bucket": self.aws.bucket,
-                "prefix": self.aws.prefix,
-                "export_name": self.aws.export_name,
-                "dataset_name": self.aws.dataset_name,
-                "cur_version": self.aws.cur_version,
-                "export_format": self.aws.export_format,
-                "start_date": self.aws.start_date,
-                "end_date": self.aws.end_date,
-                "reset": self.aws.reset,
-                "access_key_id": self.aws.access_key_id,
-                "secret_access_key": self.aws.secret_access_key,
-                "region": self.aws.region
-            }
-        }
+        return asdict(self)

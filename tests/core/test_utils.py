@@ -1,7 +1,7 @@
 """Unit tests for core utility functions."""
 
 import pytest
-from core.table_utils import sanitize_table_name, create_table_name
+from core.naming import sanitize_table_name, create_table_name
 
 
 class TestTableNaming:
