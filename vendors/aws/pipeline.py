@@ -16,7 +16,7 @@ from .manifest import ManifestLocator, ManifestFile
 from core.config import AWSConfig
 from core.state_manager import LoadStateManager
 from core.backends.factory import create_backend
-from core.table_utils import create_table_name, sanitize_table_name
+from core.naming import create_table_name, sanitize_table_name
 
 
 def create_unified_view(export_name: str, pipeline, config: AWSConfig, backend) -> None:
