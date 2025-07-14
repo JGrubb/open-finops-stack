@@ -8,7 +8,7 @@ from pathlib import Path
 
 from .base import DatabaseBackend, StateManager, DataReader, DuckDBConfig, BACKEND_REGISTRY
 from .factory import register_backend
-from core.utils.s3 import S3Utils
+from .s3_utils import S3Utils
 
 
 class DuckDBStateManager(StateManager):
