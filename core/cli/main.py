@@ -8,18 +8,22 @@ from .base import VendorCommands
 
 
 class FinOpsCLI:
-    """Main CLI with plugin discovery."""
+    """Main CLI coordinator that discovers and manages vendor plugins.
+    
+    Automatically discovers vendor plugins via setuptools entry points,
+    with fallback to direct imports for development environments.
+    """
     
     def __init__(self):
         self.vendors: Dict[str, Type[VendorCommands]] = {}
         self._discover_vendors()
     
     def _discover_vendors(self):
-        """Discover vendor plugins via entry points."""
+        """Discover vendor plugins via entry points with development fallback."""
         vendors_found = False
         
         try:
-            # Phase 2: Automatic discovery via entry points
+            # Primary method: Auto-discovery via setuptools entry points
             import pkg_resources
             
             entry_points = list(pkg_resources.iter_entry_points('open_finops.vendors'))
@@ -34,21 +38,24 @@ class FinOpsCLI:
                     print(f"⚠ Failed to load vendor plugin {entry_point.name}: {e}")
                     
         except ImportError:
-            pass  # pkg_resources not available
+            # pkg_resources not available (rare case)
+            pass
         
-        # Fallback: Manual discovery for development mode
+        # Development fallback: Direct import when entry points not set up
         if not vendors_found:
             try:
                 from vendors.aws.cli import AWSCommands
                 self.vendors['aws'] = AWSCommands
             except ImportError:
-                pass  # AWS not installed
+                # AWS vendor not available in this installation
+                pass
     
     def run(self):
-        """Run the CLI."""
+        """Parse arguments and execute the appropriate vendor command."""
         parser = self._create_parser()
         args = parser.parse_args()
         
+        # Show help if no command specified
         if not args.command:
             parser.print_help()
             sys.exit(0)
@@ -59,8 +66,12 @@ class FinOpsCLI:
             vendor_instance = vendor_class()
             vendor_instance.execute(args)
         else:
+            # Handle unknown vendor with helpful error message
             print(f"Vendor '{args.command}' not available")
-            print(f"Available vendors: {', '.join(self.vendors.keys())}")
+            if self.vendors:
+                print(f"Available vendors: {', '.join(self.vendors.keys())}")
+            else:
+                print("No vendor plugins found. Check your installation.")
             sys.exit(1)
     
     def _create_parser(self):
@@ -75,7 +86,7 @@ class FinOpsCLI:
         
         subparsers = parser.add_subparsers(dest='command', help='Available commands')
         
-        # Let each vendor add its subcommands
+        # Register subcommands from each discovered vendor plugin
         for name, vendor_class in self.vendors.items():
             vendor_instance = vendor_class()
             vendor_instance.add_subparser(subparsers)

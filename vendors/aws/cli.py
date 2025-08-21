@@ -11,47 +11,59 @@ from .pipeline import run_aws_pipeline
 from .manifest import ManifestLocator
 
 
-def aws_import_cur(args):
-    """Import AWS Cost and Usage Reports."""
-    
-    # Load configuration
+def _load_and_validate_config(args, required_aws_fields=True):
+    """Load configuration, merge CLI args, and validate AWS config if needed."""
     config_path = Path(args.config) if args.config else Path('config.toml')
     config = Config.load(config_path)
     
-    # Merge CLI arguments into configuration
+    # Merge CLI arguments into configuration (only non-None values)
     cli_args = {
-        'bucket': args.bucket,
-        'prefix': args.prefix,
-        'export_name': args.export_name,
-        'cur_version': args.cur_version,
-        'export_format': args.export_format,
-        'start_date': args.start_date,
-        'end_date': args.end_date,
-        'reset': args.reset,
-        'table_strategy': args.table_strategy
+        'bucket': getattr(args, 'bucket', None),
+        'prefix': getattr(args, 'prefix', None),
+        'export_name': getattr(args, 'export_name', None),
+        'cur_version': getattr(args, 'cur_version', None),
+        'export_format': getattr(args, 'export_format', None),
+        'start_date': getattr(args, 'start_date', None),
+        'end_date': getattr(args, 'end_date', None),
+        'reset': getattr(args, 'reset', None),
+        'table_strategy': getattr(args, 'table_strategy', None)
     }
+    cli_args = {k: v for k, v in cli_args.items() if v is not None}
+    config.merge_cli_args(cli_args)
     
     # Override database backend if specified via CLI
     if hasattr(args, 'destination') and args.destination != 'duckdb':
-        # CLI override for destination
         config.database.backend = args.destination
     
-    # Remove None values
-    cli_args = {k: v for k, v in cli_args.items() if v is not None}
+    # Validate AWS configuration if required
+    if required_aws_fields:
+        try:
+            config.validate_aws_config()
+        except ValueError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            print("\nRequired parameters can be set via:")
+            print("  - config.toml file")
+            print("  - Environment variables (OPEN_FINOPS_AWS_*)")
+            print("  - Command-line flags")
+            sys.exit(1)
     
-    # Merge with config
-    config.merge_cli_args(cli_args)
+    return config
+
+
+def _get_aws_credentials(config):
+    """Extract AWS credentials dictionary from config."""
+    return {
+        'access_key_id': config.aws.access_key_id,
+        'secret_access_key': config.aws.secret_access_key,
+        'region': config.aws.region
+    }
+
+
+def aws_import_cur(args):
+    """Import AWS Cost and Usage Reports."""
     
-    # Validate we have required fields
-    try:
-        config.validate_aws_config()
-    except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        print("\nRequired parameters can be set via:")
-        print("  - config.toml file")
-        print("  - Environment variables (OPEN_FINOPS_AWS_*)")
-        print("  - Command-line flags")
-        sys.exit(1)
+    # Load and validate configuration
+    config = _load_and_validate_config(args)
     
     # Show configuration
     print("\nAWS CUR Import Configuration:")
@@ -87,33 +99,11 @@ def aws_import_cur(args):
 def aws_list_manifests(args):
     """List available billing periods in S3."""
     
-    # Load configuration
-    config_path = Path(args.config) if args.config else Path('config.toml')
-    config = Config.load(config_path)
-    
-    # Merge CLI arguments for bucket/prefix/export_name if provided
-    cli_args = {
-        'bucket': args.bucket,
-        'prefix': args.prefix,
-        'export_name': args.export_name,
-        'cur_version': args.cur_version
-    }
-    cli_args = {k: v for k, v in cli_args.items() if v is not None}
-    config.merge_cli_args(cli_args)
-    
-    # Validate we have required fields
-    try:
-        config.validate_aws_config()
-    except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
+    # Load and validate configuration
+    config = _load_and_validate_config(args)
     
     # Get AWS credentials
-    aws_creds = {
-        'access_key_id': config.aws.access_key_id,
-        'secret_access_key': config.aws.secret_access_key,
-        'region': config.aws.region
-    }
+    aws_creds = _get_aws_credentials(config)
     
     # Initialize manifest locator
     locator = ManifestLocator(
@@ -148,9 +138,8 @@ def aws_list_manifests(args):
 def aws_show_state(args):
     """Show load state and version history."""
     
-    # Load configuration
-    config_path = Path(args.config) if args.config else Path('config.toml')
-    config = Config.load(config_path)
+    # Load configuration (don't require all AWS fields, just export_name)
+    config = _load_and_validate_config(args, required_aws_fields=False)
     
     # Override export name if provided
     if args.export_name:
@@ -229,9 +218,8 @@ def aws_show_state(args):
 def aws_list_exports(args):
     """List all available exports and their tables."""
     
-    # Load configuration
-    config_path = Path(args.config) if args.config else Path('config.toml')
-    config = Config.load(config_path)
+    # Load configuration (don't require AWS fields for this command)
+    config = _load_and_validate_config(args, required_aws_fields=False)
     
     # Set up data directory path
     if config.project and config.project.data_dir:
